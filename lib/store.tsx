@@ -21,6 +21,7 @@ import type {
   Persona,
   Session,
   SoftwareCategory,
+  WaitlistEntry,
 } from "./types";
 import { computeVerified, uid } from "./utils";
 
@@ -186,25 +187,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
         const payload = (await response.json()) as {
           inviteCode?: string;
-          waitlist?: {
-            id: string;
-            email: string;
-            interest: "owner" | "manager";
-            createdAt: string;
-            inviteCode: string;
-            referredBy?: string;
-          };
+          waitlist?: WaitlistEntry;
         };
-        if (response.ok && payload.waitlist) {
+        const remote = payload.waitlist;
+        if (response.ok && remote) {
           patch((current) => ({
             ...current,
-            waitlist: current.waitlist.some((entry) => entry.email === payload.waitlist!.email)
+            waitlist: current.waitlist.some((entry) => entry.email === remote.email)
               ? current.waitlist.map((entry) =>
-                  entry.email === payload.waitlist!.email ? payload.waitlist! : entry,
+                  entry.email === remote.email ? remote : entry,
                 )
-              : [payload.waitlist, ...current.waitlist],
+              : [remote, ...current.waitlist],
           }));
-          return payload.inviteCode ?? payload.waitlist.inviteCode;
+          return payload.inviteCode ?? remote.inviteCode;
         }
       } catch {
         // Fall through to LocalStorage when Supabase is not configured.
