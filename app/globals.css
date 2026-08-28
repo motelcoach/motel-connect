@@ -1,26 +1,63 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f7fa;
+  --foreground: #0f172a;
+  --muted: #475569;
+  --border: #dbe3ec;
+  --accent: #0f766e;
+  --ink: #0b1220;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-ink: var(--ink);
+  --font-sans: var(--font-source-sans);
+  --font-serif: var(--font-newsreader);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-source-sans), Georgia, sans-serif;
+}
+
+::selection {
+  background: #c7e0dc;
+  color: var(--ink);
+}
+
+.font-serif {
+  font-family: var(--font-newsreader), Georgia, serif;
+}
+
+.soft-panel {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(219, 227, 236, 0.95);
+  backdrop-filter: blur(12px);
+}
+
+.hero-lock {
+  height: 100svh;
+  overflow: hidden;
+}
+
+.hero-scrim {
+  background:
+    radial-gradient(ellipse 70% 52% at 50% 44%, rgba(8, 12, 20, 0.42) 0%, transparent 72%),
+    linear-gradient(180deg, rgba(8, 12, 18, 0.28) 0%, transparent 22%, transparent 70%, rgba(8, 12, 18, 0.55) 100%);
+}
+
+.leaflet-container {
+  font-family: inherit;
+  background: #dbe7ef;
 }
