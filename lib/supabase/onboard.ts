@@ -87,6 +87,7 @@ export async function onboardNetwork(admin: SupabaseClient) {
 
   await seedEmptyProfiles(admin);
   await seedEmptyListedRoles(admin);
+  await backfillEmptyRoleBriefs(admin);
 }
 
 async function seedEmptyProfiles(admin: SupabaseClient) {
@@ -133,6 +134,7 @@ async function seedEmptyListedRoles(admin: SupabaseClient) {
         end_date: role.endDate,
         daily_rate: role.dailyRate,
         notes: role.notes,
+        brief: role.brief ?? {},
         status: role.status,
         created_at: role.createdAt,
       })
@@ -150,5 +152,21 @@ async function seedEmptyListedRoles(admin: SupabaseClient) {
         emails.map((email) => ({ role_id: data.id, manager_email: email })),
       );
     }
+  }
+}
+
+async function backfillEmptyRoleBriefs(admin: SupabaseClient) {
+  const { data, error } = await admin.from("listed_roles").select("id, owner_email, brief");
+  if (error || !data?.length) return;
+
+  for (const row of data) {
+    if (row.brief && Object.keys(row.brief as object).length > 0) continue;
+    const ownerEmail = String(row.owner_email ?? "").toLowerCase();
+    const seed = seedListedRoles.find((role) => {
+      const owner = seedOwners.find((item) => item.id === role.ownerId);
+      return owner?.email.toLowerCase() === ownerEmail;
+    });
+    if (!seed?.brief) continue;
+    await admin.from("listed_roles").update({ brief: seed.brief }).eq("id", row.id);
   }
 }

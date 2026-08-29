@@ -161,6 +161,42 @@ export type ManagerReview = {
 
 export type ListedRoleStatus = "Open" | "Filled" | "Closed";
 
+export type RoleProfilePreference = ProfileType | "Either";
+export type OccupancyMix = "Corporate" | "Leisure" | "Mixed" | "";
+export type EmploymentType = "Contractor" | "Employee";
+export type YesNoUnknown = "Yes" | "No" | "Unknown" | "";
+
+export type RoleBrief = {
+  contactName: string;
+  contactPhone: string;
+  profileType: RoleProfilePreference;
+  rooms: number;
+  pms: string;
+  pos: string;
+  hr: string;
+  otherSystems: string;
+  durationNotes: string;
+  liquorRequired: boolean;
+  liquorNotes: string;
+  safeFoodLicense: boolean;
+  eventsRequired: boolean;
+  restaurantRequired: boolean;
+  occupancyAverage: string;
+  occupancyNotes: string;
+  occupancyMix: OccupancyMix;
+  gdsConnected: YesNoUnknown;
+  cleaningExpectation: string;
+  employmentType: EmploymentType;
+  rosterNotes: string;
+  livingQuarters: string;
+  petsAllowed: boolean;
+  mealPrepNotes: string;
+  superIncluded: boolean;
+  billsIncluded: boolean;
+  mealsIncluded: boolean;
+  packageNotes: string;
+};
+
 export type ListedRole = {
   id: string;
   ownerId: string;
@@ -173,6 +209,7 @@ export type ListedRole = {
   endDate: string;
   dailyRate: number;
   notes: string;
+  brief?: RoleBrief;
   status: ListedRoleStatus;
   interestedManagerIds: string[];
   createdAt: string;
@@ -284,6 +321,7 @@ export type ListedRoleRecord = {
   endDate: string;
   dailyRate: number;
   notes: string;
+  brief?: RoleBrief | null;
   status: ListedRoleStatus;
   interestedEmails: string[];
   createdAt: string;

@@ -63,6 +63,7 @@ type StoreContextValue = AppState & {
     endDate: string;
     dailyRate: number;
     notes: string;
+    brief?: ListedRole["brief"];
   }) => string | null;
   setListedRoleStatus: (roleId: string, status: ListedRole["status"]) => void;
   expressRoleInterest: (roleId: string) => void;
@@ -475,6 +476,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         endDate: input.endDate,
         dailyRate: input.dailyRate,
         notes: input.notes,
+        brief: input.brief,
         status: "Open",
         interestedManagerIds: [],
         createdAt: new Date().toISOString(),
@@ -497,6 +499,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           endDate: input.endDate,
           dailyRate: input.dailyRate,
           notes: input.notes,
+          brief: input.brief,
         }),
       })
         .then(async (response) => {

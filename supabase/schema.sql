@@ -138,3 +138,6 @@ create index if not exists listed_role_interest_email_lower
   on public.listed_role_interest (lower(manager_email));
 
 alter table public.listed_role_interest enable row level security;
+
+alter table public.listed_roles
+  add column if not exists brief jsonb not null default '{}'::jsonb;

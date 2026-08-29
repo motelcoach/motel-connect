@@ -4,10 +4,13 @@ import type {
   AdvisorReview,
   AustralianState,
   JobType,
+  ListedRole,
   ManagerBasket,
   ManagerProfile,
   ProfileType,
+  RoleProfilePreference,
 } from "./types";
+import { normalizeBrief } from "./roles";
 import { managerBasket } from "./managers";
 import { average } from "./utils";
 
@@ -146,6 +149,87 @@ export function filterAdvisors(
         advisor.specialtyTags.join(" "),
         advisor.statesCovered.join(" "),
       ]
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+export type RoleFilters = {
+  query: string;
+  profileType: RoleProfilePreference | "Any";
+  jobType: JobType | "Any";
+  state: AustralianState | "Any";
+  startDate: string;
+  endDate: string;
+  pms: string;
+  pos: string;
+  hr: string;
+  liquor: boolean;
+  events: boolean;
+  restaurant: boolean;
+};
+
+export const defaultRoleFilters = (): RoleFilters => ({
+  query: "",
+  profileType: "Any",
+  jobType: "Any",
+  state: "Any",
+  startDate: "",
+  endDate: "",
+  pms: "",
+  pos: "",
+  hr: "",
+  liquor: false,
+  events: false,
+  restaurant: false,
+});
+
+function rangesOverlap(roleStart: string, roleEnd: string, from: string, to: string) {
+  if (!from && !to) return true;
+  const start = new Date(`${roleStart}T00:00:00`).getTime();
+  const end = new Date(`${roleEnd}T00:00:00`).getTime();
+  const filterStart = from ? new Date(`${from}T00:00:00`).getTime() : start;
+  const filterEnd = to ? new Date(`${to}T00:00:00`).getTime() : end;
+  if ([start, end, filterStart, filterEnd].some(Number.isNaN)) return true;
+  return start <= filterEnd && end >= filterStart;
+}
+
+export function filterListedRoles(roles: ListedRole[], filters: RoleFilters) {
+  const q = filters.query.trim().toLowerCase();
+
+  return roles.filter((role) => {
+    const brief = normalizeBrief(role.brief);
+    if (filters.profileType !== "Any" && brief.profileType !== "Either" && brief.profileType !== filters.profileType) {
+      return false;
+    }
+    if (filters.jobType !== "Any" && role.jobType !== filters.jobType) return false;
+    if (filters.state !== "Any" && role.state !== filters.state) return false;
+    if (!rangesOverlap(role.startDate, role.endDate, filters.startDate, filters.endDate)) {
+      return false;
+    }
+    if (filters.pms && brief.pms !== filters.pms) return false;
+    if (filters.pos && brief.pos !== filters.pos) return false;
+    if (filters.hr && brief.hr !== filters.hr) return false;
+    if (filters.liquor && !brief.liquorRequired) return false;
+    if (filters.events && !brief.eventsRequired) return false;
+    if (filters.restaurant && !brief.restaurantRequired) return false;
+    if (q) {
+      const haystack = [
+        role.motelName,
+        role.location,
+        role.ownerName,
+        role.notes,
+        brief.pms,
+        brief.pos,
+        brief.otherSystems,
+        brief.occupancyNotes,
+        brief.livingQuarters,
+        brief.packageNotes,
+      ]
+        .filter(Boolean)
         .join(" ")
         .toLowerCase();
       if (!haystack.includes(q)) return false;

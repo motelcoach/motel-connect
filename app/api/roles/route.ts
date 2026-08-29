@@ -1,8 +1,8 @@
 import { onboardNetwork } from "@/lib/supabase/onboard";
 import { isMissingTable } from "@/lib/supabase/missing";
 import { isSupabaseConfigured, supabaseAdmin } from "@/lib/supabase/admin";
-import { asJobType, asRoleStatus } from "@/lib/roles";
-import type { ListedRoleRecord } from "@/lib/types";
+import { asJobType, asRoleStatus, normalizeBrief } from "@/lib/roles";
+import type { ListedRoleRecord, RoleBrief } from "@/lib/types";
 import { NextRequest, NextResponse } from "next/server";
 
 type RoleRow = {
@@ -17,9 +17,14 @@ type RoleRow = {
   end_date: string;
   daily_rate: number | string;
   notes: string;
+  brief?: RoleBrief | null;
   status: string;
   created_at: string;
 };
+
+const ROLE_COLUMNS =
+  "id, owner_email, owner_name, motel_name, location, state, job_type, start_date, end_date, daily_rate, notes, status, created_at";
+const ROLE_COLUMNS_WITH_BRIEF = `${ROLE_COLUMNS}, brief`;
 
 function unavailable() {
   return NextResponse.json(
@@ -41,6 +46,7 @@ function toRecord(row: RoleRow, interestedEmails: string[]): ListedRoleRecord {
     endDate: String(row.end_date).slice(0, 10),
     dailyRate: Number(row.daily_rate),
     notes: row.notes ?? "",
+    brief: normalizeBrief(row.brief),
     status: asRoleStatus(row.status),
     interestedEmails,
     createdAt: row.created_at,
@@ -74,12 +80,24 @@ export async function GET() {
     // Tables may not exist until schema.sql is applied.
   }
 
-  const { data, error } = await admin
+  const withBrief = await admin
     .from("listed_roles")
-    .select(
-      "id, owner_email, owner_name, motel_name, location, state, job_type, start_date, end_date, daily_rate, notes, status, created_at",
-    )
+    .select(ROLE_COLUMNS_WITH_BRIEF)
     .order("created_at", { ascending: false });
+
+  let rows: RoleRow[] = [];
+  let error = withBrief.error;
+
+  if (!error) {
+    rows = (withBrief.data ?? []) as RoleRow[];
+  } else {
+    const fallback = await admin
+      .from("listed_roles")
+      .select(ROLE_COLUMNS)
+      .order("created_at", { ascending: false });
+    error = fallback.error;
+    rows = (fallback.data ?? []) as RoleRow[];
+  }
 
   if (error) {
     if (isMissingTable(error)) {
@@ -87,8 +105,6 @@ export async function GET() {
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  const rows = (data ?? []) as RoleRow[];
   const interest = await interestsByRole(
     admin,
     rows.map((row) => row.id),
@@ -114,6 +130,7 @@ export async function POST(request: NextRequest) {
     endDate?: string;
     dailyRate?: number;
     notes?: string;
+    brief?: RoleBrief;
   };
   try {
     body = await request.json();
@@ -129,25 +146,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Start and end dates are required" }, { status: 400 });
   }
 
-  const { data, error } = await supabaseAdmin()
+  const insertRow = {
+    owner_email: ownerEmail,
+    owner_name: body.ownerName ?? "",
+    motel_name: body.motelName ?? "",
+    location: body.location ?? "",
+    state: body.state ?? "NSW",
+    job_type: asJobType(body.jobType),
+    start_date: body.startDate,
+    end_date: body.endDate,
+    daily_rate: Number(body.dailyRate) || 0,
+    notes: body.notes ?? "",
+    brief: normalizeBrief(body.brief),
+    status: "Open",
+  };
+
+  const created = await supabaseAdmin()
     .from("listed_roles")
-    .insert({
-      owner_email: ownerEmail,
-      owner_name: body.ownerName ?? "",
-      motel_name: body.motelName ?? "",
-      location: body.location ?? "",
-      state: body.state ?? "NSW",
-      job_type: asJobType(body.jobType),
-      start_date: body.startDate,
-      end_date: body.endDate,
-      daily_rate: Number(body.dailyRate) || 0,
-      notes: body.notes ?? "",
-      status: "Open",
-    })
-    .select(
-      "id, owner_email, owner_name, motel_name, location, state, job_type, start_date, end_date, daily_rate, notes, status, created_at",
-    )
+    .insert(insertRow)
+    .select(ROLE_COLUMNS_WITH_BRIEF)
     .maybeSingle();
+
+  let data = created.data as RoleRow | null;
+  let error = created.error;
+
+  if (error && !isMissingTable(error)) {
+    const { brief: _brief, ...withoutBrief } = insertRow;
+    const retry = await supabaseAdmin()
+      .from("listed_roles")
+      .insert(withoutBrief)
+      .select(ROLE_COLUMNS)
+      .maybeSingle();
+    data = retry.data as RoleRow | null;
+    error = retry.error;
+  }
 
   if (error) {
     if (isMissingTable(error)) {
@@ -207,9 +239,7 @@ export async function PATCH(request: NextRequest) {
 
   const { data, error } = await admin
     .from("listed_roles")
-    .select(
-      "id, owner_email, owner_name, motel_name, location, state, job_type, start_date, end_date, daily_rate, notes, status, created_at",
-    )
+    .select(ROLE_COLUMNS_WITH_BRIEF)
     .eq("id", id)
     .maybeSingle();
 
