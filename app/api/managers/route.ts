@@ -1,8 +1,12 @@
 import { onboardNetwork } from "@/lib/supabase/onboard";
 import { isMissingTable } from "@/lib/supabase/missing";
 import { isSupabaseConfigured, supabaseAdmin } from "@/lib/supabase/admin";
-import type { ManagerRosterRecord } from "@/lib/types";
+import { toProfileJson } from "@/lib/managers";
+import type { ManagerProfile, ManagerRosterRecord } from "@/lib/types";
 import { NextRequest, NextResponse } from "next/server";
+
+const ROSTER_COLUMNS = "id, email, name, phone, location, state, basket, verified_by_admin, created_at";
+const PROFILE_COLUMNS = `${ROSTER_COLUMNS}, profile`;
 
 type ManagerRow = {
   id: string;
@@ -14,6 +18,7 @@ type ManagerRow = {
   basket: "premium" | "open";
   verified_by_admin: boolean;
   created_at: string;
+  profile?: Partial<ManagerProfile> | null;
 };
 
 function toRecord(row: ManagerRow): ManagerRosterRecord {
@@ -27,6 +32,7 @@ function toRecord(row: ManagerRow): ManagerRosterRecord {
     basket: row.basket,
     verifiedByAdmin: row.verified_by_admin,
     createdAt: row.created_at,
+    profile: row.profile && Object.keys(row.profile).length ? row.profile : null,
   };
 }
 
@@ -47,10 +53,19 @@ export async function GET() {
     // Table may not exist until schema.sql is applied.
   }
 
-  const { data, error } = await admin
+  let { data, error } = await admin
     .from("managers")
-    .select("id, email, name, phone, location, state, basket, verified_by_admin, created_at")
+    .select(PROFILE_COLUMNS)
     .order("created_at", { ascending: false });
+
+  if (error && !isMissingTable(error)) {
+    const fallback = await admin
+      .from("managers")
+      .select(ROSTER_COLUMNS)
+      .order("created_at", { ascending: false });
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     if (isMissingTable(error)) {
@@ -72,7 +87,7 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
   if (!isSupabaseConfigured()) return unavailable();
 
-  let body: { email?: string; basket?: string };
+  let body: { email?: string; basket?: string; profile?: ManagerProfile };
   try {
     body = await request.json();
   } catch {
@@ -85,18 +100,28 @@ export async function PATCH(request: NextRequest) {
   if (!email || !email.includes("@")) {
     return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
   }
-  if (!basket) {
-    return NextResponse.json({ error: "Basket must be premium or open" }, { status: 400 });
+
+  const patch: Record<string, unknown> = {};
+  if (basket) {
+    patch.basket = basket;
+    patch.verified_by_admin = basket === "premium";
+  }
+  if (body.profile) {
+    patch.name = body.profile.name;
+    patch.phone = body.profile.phone || null;
+    patch.location = body.profile.location || null;
+    patch.state = body.profile.state;
+    patch.profile = toProfileJson(body.profile);
+  }
+  if (!Object.keys(patch).length) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
   const { data, error } = await supabaseAdmin()
     .from("managers")
-    .update({
-      basket,
-      verified_by_admin: basket === "premium",
-    })
+    .update(patch)
     .ilike("email", email)
-    .select("id, email, name, phone, location, state, basket, verified_by_admin, created_at")
+    .select(PROFILE_COLUMNS)
     .maybeSingle();
 
   if (error) {

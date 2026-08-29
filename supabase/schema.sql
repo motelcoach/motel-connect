@@ -1,4 +1,5 @@
--- Motel Connect v2 — waitlist, manager roster, owners, and admin login.
+-- Motel Connect v2 — waitlist, manager roster, owners, admin login,
+-- manager portfolios, and listed roles.
 -- Run this in the Supabase SQL editor. Safe to re-run.
 -- After Auth is enabled, add these Redirect URLs under Authentication → URL configuration:
 --   http://localhost:3001/auth/callback
@@ -99,3 +100,41 @@ alter table public.admins enable row level security;
 insert into public.admins (email, name)
 values ('alex.rivera@motelconnect.com.au', 'Alex Rivera')
 on conflict (email) do nothing;
+
+-- Rich manager portfolios. Roster columns stay the source for email / basket.
+alter table public.managers
+  add column if not exists profile jsonb not null default '{}'::jsonb;
+
+-- Owner-listed cover. Interest is stored by manager email so local seed IDs stay stable.
+create table if not exists public.listed_roles (
+  id uuid primary key default gen_random_uuid(),
+  owner_email text not null,
+  owner_name text not null default '',
+  motel_name text not null default '',
+  location text not null default '',
+  state text not null default 'NSW',
+  job_type text not null,
+  start_date date not null,
+  end_date date not null,
+  daily_rate numeric not null,
+  notes text not null default '',
+  status text not null default 'Open' check (status in ('Open', 'Filled', 'Closed')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists listed_roles_owner_email_lower
+  on public.listed_roles (lower(owner_email));
+
+alter table public.listed_roles enable row level security;
+
+create table if not exists public.listed_role_interest (
+  role_id uuid not null references public.listed_roles (id) on delete cascade,
+  manager_email text not null,
+  created_at timestamptz not null default now(),
+  primary key (role_id, manager_email)
+);
+
+create index if not exists listed_role_interest_email_lower
+  on public.listed_role_interest (lower(manager_email));
+
+alter table public.listed_role_interest enable row level security;

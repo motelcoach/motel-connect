@@ -1,6 +1,6 @@
 import { ADMIN_EMAIL } from "@/lib/accounts";
-import { seedManagers, seedOwners } from "@/lib/initialData";
-import { nameFromEmail } from "@/lib/managers";
+import { seedListedRoles, seedManagers, seedOwners } from "@/lib/initialData";
+import { nameFromEmail, toProfileJson } from "@/lib/managers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function onboardNetwork(admin: SupabaseClient) {
@@ -84,4 +84,71 @@ export async function onboardNetwork(admin: SupabaseClient) {
     { email: ADMIN_EMAIL, name: "Alex Rivera" },
     { onConflict: "email", ignoreDuplicates: true },
   );
+
+  await seedEmptyProfiles(admin);
+  await seedEmptyListedRoles(admin);
+}
+
+async function seedEmptyProfiles(admin: SupabaseClient) {
+  const { data, error } = await admin.from("managers").select("email, profile");
+  if (error) return;
+
+  const empty = new Set(
+    (data ?? [])
+      .filter((row) => !row.profile || Object.keys(row.profile as object).length === 0)
+      .map((row) => String(row.email ?? "").toLowerCase()),
+  );
+
+  for (const manager of seedManagers) {
+    if (!empty.has(manager.email.toLowerCase())) continue;
+    await admin
+      .from("managers")
+      .update({
+        name: manager.name,
+        phone: manager.phone || null,
+        location: manager.location || null,
+        state: manager.state,
+        profile: toProfileJson(manager),
+      })
+      .ilike("email", manager.email);
+  }
+}
+
+async function seedEmptyListedRoles(admin: SupabaseClient) {
+  const { count, error } = await admin.from("listed_roles").select("id", { count: "exact", head: true });
+  if (error || (count ?? 0) > 0) return;
+
+  for (const role of seedListedRoles) {
+    const owner = seedOwners.find((item) => item.id === role.ownerId);
+    const { data, error: insertError } = await admin
+      .from("listed_roles")
+      .insert({
+        owner_email: owner?.email.toLowerCase() ?? "",
+        owner_name: role.ownerName,
+        motel_name: role.motelName,
+        location: role.location,
+        state: role.state,
+        job_type: role.jobType,
+        start_date: role.startDate,
+        end_date: role.endDate,
+        daily_rate: role.dailyRate,
+        notes: role.notes,
+        status: role.status,
+        created_at: role.createdAt,
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (insertError || !data?.id) continue;
+
+    const emails = role.interestedManagerIds
+      .map((id) => seedManagers.find((manager) => manager.id === id)?.email.toLowerCase())
+      .filter((email): email is string => Boolean(email));
+
+    if (emails.length) {
+      await admin.from("listed_role_interest").insert(
+        emails.map((email) => ({ role_id: data.id, manager_email: email })),
+      );
+    }
+  }
 }

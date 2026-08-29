@@ -22,12 +22,14 @@ import type {
   OwnerReview,
   Persona,
   Session,
+  ListedRoleRecord,
   ManagerRosterRecord,
   SoftwareCategory,
   WaitlistEntry,
 } from "./types";
 import { accountFromPersona, hydrateSession } from "./accounts";
 import { createOpenManager, mergeRoster } from "./managers";
+import { toListedRole } from "./roles";
 import { supabaseBrowser } from "./supabase/browser";
 import { computeVerified, uid } from "./utils";
 
@@ -173,23 +175,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     let cancelled = false;
-    fetch("/api/managers")
-      .then(async (response) => {
-        if (!response.ok) return null;
-        return (await response.json()) as { managers?: ManagerRosterRecord[] };
-      })
-      .then((payload) => {
-        if (cancelled || !payload?.managers?.length) return;
-        // Merge the live Supabase roster after LocalStorage hydration.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+    async function hydrateRemote() {
+      try {
+        const response = await fetch("/api/managers");
+        if (!response.ok) return;
+        const payload = (await response.json()) as { managers?: ManagerRosterRecord[] };
+        if (cancelled || !payload.managers?.length) return;
         patch((current) => ({
           ...current,
           managers: mergeRoster(current.managers, payload.managers ?? []),
         }));
-      })
-      .catch(() => {
+      } catch {
         // Keep the LocalStorage roster when Supabase is not configured.
-      });
+      }
+
+      try {
+        const response = await fetch("/api/roles");
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          roles?: ListedRoleRecord[];
+          needsMigration?: boolean;
+        };
+        if (cancelled || payload.needsMigration || !payload.roles) return;
+        patch((current) => ({
+          ...current,
+          listedRoles: payload.roles!.map((row) =>
+            toListedRole(row, current.owners, current.managers),
+          ),
+        }));
+      } catch {
+        // Keep the LocalStorage roles when the table is not ready.
+      }
+    }
+    void hydrateRemote();
     return () => {
       cancelled = true;
     };
@@ -362,9 +380,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [patch],
   );
 
+  const persistManager = useCallback((manager: ManagerProfile) => {
+    void fetch("/api/managers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: manager.email, profile: manager }),
+    }).catch(() => {
+      // Local portfolio still applies if Supabase is unavailable.
+    });
+  }, []);
+
   const saveManager = useCallback((manager: ManagerProfile) => {
+    const next = refreshManager(manager);
     patch((current) => {
-      const next = refreshManager(manager);
       const exists = current.managers.some((item) => item.id === next.id);
       return {
         ...current,
@@ -373,7 +401,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           : [...current.managers, next],
       };
     });
-  }, [patch]);
+    persistManager(next);
+  }, [patch, persistManager]);
 
   const createProposal = useCallback<StoreContextValue["createProposal"]>((input) => {
     let createdId: string | null = null;
@@ -416,6 +445,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const createListedRole = useCallback<StoreContextValue["createListedRole"]>((input) => {
     let createdId: string | null = null;
+    let ownerEmail = "";
+    let ownerName = "";
+    let motelName = "";
+    let location = "";
+    let state = "";
     patch((current) => {
       if (!current.session) return current;
       if (current.session.role !== "owner" && current.session.role !== "admin") return current;
@@ -424,6 +458,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!owner) return current;
       const id = uid("role");
       createdId = id;
+      ownerEmail = owner.email;
+      ownerName = owner.name;
+      motelName = owner.motelName;
+      location = owner.location;
+      state = owner.state;
       const listing: ListedRole = {
         id,
         ownerId: owner.id,
@@ -442,6 +481,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       };
       return { ...current, listedRoles: [listing, ...(current.listedRoles ?? [])] };
     });
+    if (createdId && ownerEmail) {
+      const localId = createdId;
+      void fetch("/api/roles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerEmail,
+          ownerName,
+          motelName,
+          location,
+          state,
+          jobType: input.jobType,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          dailyRate: input.dailyRate,
+          notes: input.notes,
+        }),
+      })
+        .then(async (response) => {
+          if (!response.ok) return;
+          const payload = (await response.json()) as { role?: ListedRoleRecord };
+          if (!payload.role) return;
+          patch((latest) => ({
+            ...latest,
+            listedRoles: (latest.listedRoles ?? []).map((item) =>
+              item.id === localId ? toListedRole(payload.role!, latest.owners, latest.managers) : item,
+            ),
+          }));
+        })
+        .catch(() => {
+          // Local listing still applies if the table is not ready.
+        });
+    }
     return createdId;
   }, [patch]);
 
@@ -452,14 +524,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         listing.id === roleId ? { ...listing, status } : listing,
       ),
     }));
+    void fetch("/api/roles", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: roleId, status }),
+    }).catch(() => {
+      // Local status still applies if the table is not ready.
+    });
   }, [patch]);
 
   const expressRoleInterest = useCallback((roleId: string) => {
+    let managerEmail: string | undefined;
     patch((current) => {
       const managerId = current.session?.managerId;
       if (!managerId) return current;
       const manager = current.managers.find((item) => item.id === managerId);
       if (!manager?.isVerified && current.session?.role !== "admin") return current;
+      managerEmail = manager?.email || current.session?.email;
       return {
         ...current,
         listedRoles: (current.listedRoles ?? []).map((listing) => {
@@ -471,6 +552,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           };
         }),
       };
+    });
+    if (!managerEmail) return;
+    void fetch("/api/roles", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: roleId, interestedEmail: managerEmail }),
+    }).catch(() => {
+      // Local interest still applies if the table is not ready.
     });
   }, [patch]);
 
@@ -650,9 +739,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const setReferenceStatus = useCallback<StoreContextValue["setReferenceStatus"]>(
     (managerId, referenceId, status) => {
-      patch((current) => ({
-        ...current,
-        managers: current.managers.map((manager) => {
+      let saved: ManagerProfile | undefined;
+      patch((current) => {
+        const managers = current.managers.map((manager) => {
           if (manager.id !== managerId) return manager;
           return refreshManager({
             ...manager,
@@ -660,10 +749,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               reference.id === referenceId ? { ...reference, status } : reference,
             ),
           });
-        }),
-      }));
+        });
+        saved = managers.find((manager) => manager.id === managerId);
+        return { ...current, managers };
+      });
+      if (saved) persistManager(saved);
     },
-    [patch],
+    [patch, persistManager],
   );
 
   const adminVerifyManager = useCallback((managerId: string, verified: boolean) => {

@@ -55,17 +55,60 @@ export function createOpenManager(email: string, id = uid("mgr")): ManagerProfil
   };
 }
 
+export function toProfileJson(manager: ManagerProfile) {
+  return {
+    id: manager.id,
+    name: manager.name,
+    phone: manager.phone,
+    location: manager.location,
+    state: manager.state,
+    lat: manager.lat,
+    lng: manager.lng,
+    photoUrl: manager.photoUrl,
+    bio: manager.bio,
+    rightToWork: manager.rightToWork,
+    experience: manager.experience,
+    profileType: manager.profileType,
+    partnerName: manager.partnerName,
+    partnerBio: manager.partnerBio,
+    partnerExperience: manager.partnerExperience,
+    partnerPhotoUrl: manager.partnerPhotoUrl,
+    partnerRightToWork: manager.partnerRightToWork,
+    preferredLocations: manager.preferredLocations,
+    preferredJobTypes: manager.preferredJobTypes,
+    liquorLicensing: manager.liquorLicensing,
+    liquorStates: manager.liquorStates,
+    eventsExperience: manager.eventsExperience,
+    restaurantPubExperience: manager.restaurantPubExperience,
+    microsoftOffice: manager.microsoftOffice,
+    softwarePMS: manager.softwarePMS,
+    softwarePOS: manager.softwarePOS,
+    softwareHR: manager.softwareHR,
+    compliance: manager.compliance,
+    references: manager.references,
+    blockoutDates: manager.blockoutDates,
+    completedShifts: manager.completedShifts,
+  };
+}
+
+function hasProfile(profile?: Partial<ManagerProfile> | null) {
+  return Boolean(profile && Object.keys(profile).length > 0);
+}
+
 function applyRosterRow(existing: ManagerProfile | undefined, row: ManagerRosterRecord): ManagerProfile {
-  const base = existing ?? createOpenManager(row.email, row.id);
+  const profile = hasProfile(row.profile) ? row.profile : undefined;
+  const base = existing ?? createOpenManager(row.email, profile?.id || row.id);
   const premium = row.basket === "premium";
 
   return {
     ...base,
-    name: base.name || row.name || nameFromEmail(row.email),
+    ...(profile ?? {}),
+    id: existing?.id || profile?.id || row.id,
+    name: profile?.name || base.name || row.name || nameFromEmail(row.email),
     email: row.email,
-    phone: base.phone || row.phone || "",
-    location: base.location || row.location || "",
-    state: base.location ? base.state : asAustralianState(row.state),
+    phone: profile?.phone || base.phone || row.phone || "",
+    location: profile?.location || base.location || row.location || "",
+    state: asAustralianState(profile?.state || base.state || row.state),
     verifiedByAdmin: row.verifiedByAdmin || premium,
   };
 }

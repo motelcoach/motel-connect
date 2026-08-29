@@ -269,6 +269,24 @@ export type ManagerRosterRecord = {
   basket: ManagerBasket;
   verifiedByAdmin: boolean;
   createdAt: string;
+  profile?: Partial<ManagerProfile> | null;
+};
+
+export type ListedRoleRecord = {
+  id: string;
+  ownerEmail: string;
+  ownerName: string;
+  motelName: string;
+  location: string;
+  state: string;
+  jobType: JobType;
+  startDate: string;
+  endDate: string;
+  dailyRate: number;
+  notes: string;
+  status: ListedRoleStatus;
+  interestedEmails: string[];
+  createdAt: string;
 };
 
 export type LoginAccount = {
