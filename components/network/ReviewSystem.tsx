@@ -189,7 +189,7 @@ export function ReviewSystem() {
         <h1 className="font-serif text-3xl text-slate-900">Bidirectional reviews</h1>
         <p className="mt-1 text-sm text-slate-600">
           Owners score operations 1–10. Managers score residence, workplace and wage
-          speed. Rehire flags feed the leaderboard.
+          speed. Rehire flags stay on the profile.
         </p>
       </div>
       <div className="grid gap-3">

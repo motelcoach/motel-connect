@@ -15,6 +15,8 @@ import type {
   AdvisorService,
   AppState,
   JobContract,
+  ListedRole,
+  LoginAccount,
   ManagerProfile,
   ManagerReview,
   OwnerReview,
@@ -24,7 +26,9 @@ import type {
   SoftwareCategory,
   WaitlistEntry,
 } from "./types";
+import { accountFromPersona, hydrateSession } from "./accounts";
 import { createOpenManager, mergeRoster } from "./managers";
+import { supabaseBrowser } from "./supabase/browser";
 import { computeVerified, uid } from "./utils";
 
 const STORAGE_KEY = "motel-connect-v2";
@@ -35,6 +39,7 @@ type StoreContextValue = AppState & {
   currentOwner: AppState["owners"][number] | undefined;
   currentManager: ManagerProfile | undefined;
   enterAs: (personaId: string) => void;
+  login: (account: LoginAccount) => void;
   signOut: () => void;
   requestInvite: (
     email: string,
@@ -50,6 +55,15 @@ type StoreContextValue = AppState & {
     contractDetails: string;
     specialConditions: string;
   }) => string | null;
+  createListedRole: (input: {
+    jobType: ListedRole["jobType"];
+    startDate: string;
+    endDate: string;
+    dailyRate: number;
+    notes: string;
+  }) => string | null;
+  setListedRoleStatus: (roleId: string, status: ListedRole["status"]) => void;
+  expressRoleInterest: (roleId: string) => void;
   respondToProposal: (contractId: string, accept: boolean) => void;
   signNDA: (contractId: string) => void;
   sendMessage: (contractId: string, text: string) => void;
@@ -137,6 +151,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             };
           }),
           taxonomy: parsed.taxonomy ?? seed.taxonomy,
+          listedRoles: parsed.listedRoles ?? seed.listedRoles,
+          session: hydrateSession(parsed.session ?? seed.session),
         });
       }
     } catch {
@@ -179,19 +195,105 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [hydrated, patch]);
 
+  const login = useCallback((account: LoginAccount) => {
+    patch((current) => {
+      let managers = current.managers;
+      let owners = current.owners;
+      let ownerId = account.ownerId;
+      let managerId = account.managerId;
+
+      if (account.role === "verified_manager" || account.role === "unverified_manager") {
+        const existing = managers.find(
+          (manager) =>
+            manager.email.toLowerCase() === account.email ||
+            (account.managerId && manager.id === account.managerId),
+        );
+        managerId = existing?.id ?? account.managerId ?? uid("mgr");
+        if (!existing) {
+          managers = [
+            refreshManager({
+              ...createOpenManager(account.email, managerId),
+              name: account.name,
+              photoUrl: account.photoUrl,
+              verifiedByAdmin: account.role === "verified_manager",
+            }),
+            ...managers,
+          ];
+        }
+      }
+
+      if (account.role === "owner") {
+        const existing = owners.find(
+          (owner) =>
+            (account.ownerId && owner.id === account.ownerId) ||
+            owner.email.toLowerCase() === account.email,
+        );
+        ownerId = existing?.id ?? account.ownerId ?? uid("owner");
+        if (!existing) {
+          owners = [
+            {
+              id: ownerId,
+              name: account.name,
+              email: account.email,
+              phone: "",
+              motelName: account.motelName ?? "Motel",
+              location: "",
+              state: "NSW",
+              photoUrl: account.photoUrl,
+              rooms: 0,
+              pms: "",
+              advisoryStack: [],
+              advisoryPromptDismissed: false,
+            },
+            ...owners,
+          ];
+        }
+      }
+
+      const session: Session = {
+        personaId: account.personaId,
+        role: account.role,
+        ownerId,
+        managerId,
+        email: account.email,
+        name: account.name,
+        photoUrl: account.photoUrl,
+        label: account.label,
+      };
+
+      return { ...current, session, managers, owners };
+    });
+  }, [patch]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const supabase = supabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    void supabase.auth.getSession().then(async ({ data }) => {
+      const token = data.session?.access_token;
+      if (!token || cancelled) return;
+      const response = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok || cancelled) return;
+      const payload = (await response.json()) as { account?: LoginAccount };
+      if (payload.account) login(payload.account);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, login]);
+
   const enterAs = useCallback((personaId: string) => {
     const persona = personas.find((item) => item.id === personaId);
     if (!persona) return;
-    const session: Session = {
-      personaId: persona.id,
-      role: persona.role,
-      ownerId: persona.ownerId,
-      managerId: persona.managerId,
-    };
-    patch((current) => ({ ...current, session }));
-  }, [patch]);
+    login(accountFromPersona(persona));
+  }, [login]);
 
   const signOut = useCallback(() => {
+    void supabaseBrowser()?.auth.signOut();
     patch((current) => ({ ...current, session: null }));
   }, [patch]);
 
@@ -310,6 +412,66 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { ...current, contracts: [contract, ...current.contracts] };
     });
     return createdId;
+  }, [patch]);
+
+  const createListedRole = useCallback<StoreContextValue["createListedRole"]>((input) => {
+    let createdId: string | null = null;
+    patch((current) => {
+      if (!current.session) return current;
+      if (current.session.role !== "owner" && current.session.role !== "admin") return current;
+      const owner =
+        current.owners.find((item) => item.id === current.session?.ownerId) ?? current.owners[0];
+      if (!owner) return current;
+      const id = uid("role");
+      createdId = id;
+      const listing: ListedRole = {
+        id,
+        ownerId: owner.id,
+        ownerName: owner.name,
+        motelName: owner.motelName,
+        location: owner.location,
+        state: owner.state,
+        jobType: input.jobType,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        dailyRate: input.dailyRate,
+        notes: input.notes,
+        status: "Open",
+        interestedManagerIds: [],
+        createdAt: new Date().toISOString(),
+      };
+      return { ...current, listedRoles: [listing, ...(current.listedRoles ?? [])] };
+    });
+    return createdId;
+  }, [patch]);
+
+  const setListedRoleStatus = useCallback((roleId: string, status: ListedRole["status"]) => {
+    patch((current) => ({
+      ...current,
+      listedRoles: (current.listedRoles ?? []).map((listing) =>
+        listing.id === roleId ? { ...listing, status } : listing,
+      ),
+    }));
+  }, [patch]);
+
+  const expressRoleInterest = useCallback((roleId: string) => {
+    patch((current) => {
+      const managerId = current.session?.managerId;
+      if (!managerId) return current;
+      const manager = current.managers.find((item) => item.id === managerId);
+      if (!manager?.isVerified && current.session?.role !== "admin") return current;
+      return {
+        ...current,
+        listedRoles: (current.listedRoles ?? []).map((listing) => {
+          if (listing.id !== roleId || listing.status !== "Open") return listing;
+          if (listing.interestedManagerIds.includes(managerId)) return listing;
+          return {
+            ...listing,
+            interestedManagerIds: [...listing.interestedManagerIds, managerId],
+          };
+        }),
+      };
+    });
   }, [patch]);
 
   const respondToProposal = useCallback((contractId: string, accept: boolean) => {
@@ -591,10 +753,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       currentOwner,
       currentManager,
       enterAs,
+      login,
       signOut,
       requestInvite,
       saveManager,
       createProposal,
+      createListedRole,
+      setListedRoleStatus,
+      expressRoleInterest,
       respondToProposal,
       signNDA,
       sendMessage,
@@ -618,10 +784,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       currentOwner,
       currentManager,
       enterAs,
+      login,
       signOut,
       requestInvite,
       saveManager,
       createProposal,
+      createListedRole,
+      setListedRoleStatus,
+      expressRoleInterest,
       respondToProposal,
       signNDA,
       sendMessage,

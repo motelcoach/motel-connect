@@ -64,8 +64,8 @@ body {
 .hero-headline {
   letter-spacing: 0.005em;
   line-height: 1;
-  font-size: clamp(1.28rem, 7.15vw, 4.35rem);
-  font-size: clamp(1.28rem, 8.2cqi, 4.35rem);
+  font-size: clamp(1.12rem, 6.4vw, 3.6rem);
+  font-size: clamp(1.12rem, 6.8cqi, 3.6rem);
 }
 
 .hero-headline-line {

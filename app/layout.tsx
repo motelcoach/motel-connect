@@ -16,7 +16,7 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Motel Connect — Quality Trusted Motel Managers",
+  title: "Motel Connect — Trusted Motel Manager Recruitment",
   description:
     "Invite-only network connecting owners with pre-vetted relief and permanent managers.",
 };

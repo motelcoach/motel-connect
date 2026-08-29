@@ -1,5 +1,5 @@
-import { seedManagers } from "@/lib/initialData";
-import { nameFromEmail } from "@/lib/managers";
+import { onboardNetwork } from "@/lib/supabase/onboard";
+import { isMissingTable } from "@/lib/supabase/missing";
 import { isSupabaseConfigured, supabaseAdmin } from "@/lib/supabase/admin";
 import type { ManagerRosterRecord } from "@/lib/types";
 import { NextRequest, NextResponse } from "next/server";
@@ -37,52 +37,12 @@ function unavailable() {
   );
 }
 
-async function onboardRoster(admin: ReturnType<typeof supabaseAdmin>) {
-  const seedRows = seedManagers.map((manager) => ({
-    email: manager.email.toLowerCase(),
-    name: manager.name,
-    phone: manager.phone || null,
-    location: manager.location || null,
-    state: manager.state,
-    basket: manager.isVerified ? "premium" : "open",
-    verified_by_admin: Boolean(manager.verifiedByAdmin),
-  }));
-
-  if (seedRows.length) {
-    await admin.from("managers").upsert(seedRows, {
-      onConflict: "email",
-      ignoreDuplicates: true,
-    });
-  }
-
-  const { data: waiting } = await admin
-    .from("waitlist")
-    .select("email")
-    .eq("interest", "manager");
-
-  const waitlistRows = (waiting ?? [])
-    .map((row) => String(row.email ?? "").trim().toLowerCase())
-    .filter((email) => email.includes("@"))
-    .map((email) => ({
-      email,
-      name: nameFromEmail(email),
-      basket: "open" as const,
-    }));
-
-  if (waitlistRows.length) {
-    await admin.from("managers").upsert(waitlistRows, {
-      onConflict: "email",
-      ignoreDuplicates: true,
-    });
-  }
-}
-
 export async function GET() {
   if (!isSupabaseConfigured()) return unavailable();
 
   const admin = supabaseAdmin();
   try {
-    await onboardRoster(admin);
+    await onboardNetwork(admin);
   } catch {
     // Table may not exist until schema.sql is applied.
   }
@@ -93,12 +53,7 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    const missingTable =
-      error.message.includes("schema cache") ||
-      error.message.includes("does not exist") ||
-      error.code === "PGRST205" ||
-      error.code === "42P01";
-    if (missingTable) {
+    if (isMissingTable(error)) {
       return NextResponse.json({
         configured: true,
         managers: [] as ManagerRosterRecord[],

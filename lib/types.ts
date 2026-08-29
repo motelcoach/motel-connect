@@ -159,6 +159,25 @@ export type ManagerReview = {
   comments: string;
 };
 
+export type ListedRoleStatus = "Open" | "Filled" | "Closed";
+
+export type ListedRole = {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  motelName: string;
+  location: string;
+  state: AustralianState;
+  jobType: JobType;
+  startDate: string;
+  endDate: string;
+  dailyRate: number;
+  notes: string;
+  status: ListedRoleStatus;
+  interestedManagerIds: string[];
+  createdAt: string;
+};
+
 export type JobContract = {
   id: string;
   ownerId: string;
@@ -237,6 +256,7 @@ export type WaitlistEntry = {
   createdAt: string;
   inviteCode: string;
   referredBy?: string;
+  admitted?: boolean;
 };
 
 export type ManagerRosterRecord = {
@@ -251,6 +271,18 @@ export type ManagerRosterRecord = {
   createdAt: string;
 };
 
+export type LoginAccount = {
+  role: Role;
+  email: string;
+  name: string;
+  label: string;
+  photoUrl: string;
+  ownerId?: string;
+  managerId?: string;
+  personaId?: string;
+  motelName?: string;
+};
+
 export type Persona = {
   id: string;
   role: Role;
@@ -263,16 +295,21 @@ export type Persona = {
 };
 
 export type Session = {
-  personaId: string;
+  personaId?: string;
   role: Role;
   ownerId?: string;
   managerId?: string;
+  email: string;
+  name: string;
+  photoUrl: string;
+  label: string;
 };
 
 export type AppState = {
   managers: ManagerProfile[];
   owners: OwnerProfile[];
   contracts: JobContract[];
+  listedRoles: ListedRole[];
   advisors: AdvisorProfile[];
   advisorReviews: AdvisorReview[];
   taxonomy: SoftwareTaxonomy;

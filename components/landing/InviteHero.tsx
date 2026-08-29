@@ -1,24 +1,27 @@
 "use client";
 
 import { Button, Field, inputClass, Modal } from "@/components/ui";
+import { DEMO_LOGINS, accountFromSeedEmail, isDemoLoginEmail } from "@/lib/accounts";
 import { useStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Check, Copy } from "lucide-react";
-import Image from "next/image";
+import { motion } from "framer-motion";
+import { Check, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function InviteHero() {
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [rolesOpen, setRolesOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [email, setEmail] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
   const [interest, setInterest] = useState<"owner" | "manager">("owner");
   const [inviteCode, setInviteCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { personas, enterAs, requestInvite } = useStore();
+  const { login, requestInvite } = useStore();
   const router = useRouter();
 
   const shareUrl =
@@ -48,6 +51,54 @@ export function InviteHero() {
     setTimeout(() => setCopied(false), 1600);
   }
 
+  async function submitLogin(event: React.FormEvent) {
+    event.preventDefault();
+    const nextEmail = loginEmail.trim().toLowerCase();
+    if (!nextEmail || loggingIn) return;
+    setLoggingIn(true);
+    setLoginError("");
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: nextEmail }),
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        account?: Parameters<typeof login>[0];
+        magicLink?: boolean;
+        message?: string;
+        error?: string;
+      };
+      if (payload.ok && payload.account) {
+        login(payload.account);
+        router.push("/network/managers");
+        return;
+      }
+      if (payload.ok && payload.magicLink) {
+        setLinkSent(true);
+        return;
+      }
+      const seed = accountFromSeedEmail(nextEmail);
+      if (response.status === 503 && seed) {
+        login(seed);
+        router.push("/network/managers");
+        return;
+      }
+      setLoginError(payload.message || payload.error || "Could not log in.");
+    } catch {
+      const seed = accountFromSeedEmail(nextEmail);
+      if (seed) {
+        login(seed);
+        router.push("/network/managers");
+        return;
+      }
+      setLoginError("Could not reach the network. Try again.");
+    } finally {
+      setLoggingIn(false);
+    }
+  }
+
   return (
     <div className="hero-lock relative">
       <header className="relative z-10 flex items-center justify-between px-6 py-5 md:px-10">
@@ -55,10 +106,14 @@ export function InviteHero() {
           Motel Connect
         </p>
         <button
-          onClick={() => setRolesOpen(true)}
+          onClick={() => {
+            setLoginError("");
+            setLinkSent(false);
+            setLoginOpen(true);
+          }}
           className="text-sm font-medium text-[#f3eee6]/70 transition hover:text-[#f3eee6]"
         >
-          Enter
+          Login
         </button>
       </header>
 
@@ -74,9 +129,9 @@ export function InviteHero() {
           </p>
           <h1 className="hero-headline mt-5 font-serif font-medium text-[#f6f1e8] sm:mt-7">
             <span className="hero-headline-line">
-              Quality. <span className="hero-gold">Trusted.</span>
+              <span className="hero-gold">Trusted</span> Motel Manager
             </span>
-            <span className="hero-headline-line mt-[0.32em]">Motel Managers.</span>
+            <span className="hero-headline-line mt-[0.32em]">Recruitment</span>
           </h1>
           <p className="mt-5 max-w-[20.5rem] text-[15px] leading-[1.5] text-[#f3eee6]/72 sm:mt-8 sm:max-w-xl sm:text-[17px] sm:leading-[1.55]">
             Recruit Relief, Permanent, Couple and Individual Motel Managers.
@@ -182,67 +237,83 @@ export function InviteHero() {
         )}
       </Modal>
 
-      <AnimatePresence>
-        {rolesOpen ? (
-          <motion.div
-            className="fixed inset-0 z-[80] flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <button
-              className="absolute inset-0 bg-slate-950/50 backdrop-blur-md"
-              onClick={() => setRolesOpen(false)}
-              aria-label="Close"
-            />
-            <motion.div
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              className="relative z-10 w-full max-w-2xl rounded-[28px] bg-white p-7 shadow-2xl md:p-8"
+      <Modal
+        open={loginOpen}
+        onClose={() => {
+          setLoginOpen(false);
+          setLinkSent(false);
+        }}
+        title="Login"
+      >
+        {linkSent ? (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              We sent a login link to <span className="font-medium text-slate-900">{loginEmail}</span>.
+              Open it on this device. It expires shortly.
+            </p>
+            <Button
+              type="button"
+              className="w-full rounded-full"
+              variant="secondary"
+              onClick={() => setLinkSent(false)}
             >
-              <h2 className="font-serif text-3xl text-slate-900">Enter</h2>
-              <p className="mt-2 max-w-lg text-sm text-slate-500">
-                Demo access. Owners stay invite-only. Managers join the open
-                roster, then earn Premium.
-              </p>
-              <div className="mt-6 grid gap-2 sm:grid-cols-2">
-                {personas.map((persona) => (
-                  <button
-                    key={persona.id}
-                    onClick={() => {
-                      enterAs(persona.id);
-                      router.push("/network/managers");
-                    }}
-                    className={cn(
-                      "flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-slate-50",
-                    )}
-                  >
-                    <Image
-                      src={persona.photoUrl}
-                      alt=""
-                      width={48}
-                      height={48}
-                      className="h-12 w-12 rounded-full object-cover"
-                    />
-                    <span>
-                      <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-                        {persona.label}
-                        {persona.role === "verified_manager" ? (
-                          <BadgeCheck className="h-4 w-4 text-teal-700" />
-                        ) : null}
-                      </span>
-                      <span className="mt-0.5 block text-sm text-slate-500">
-                        {persona.name}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+              Use a different email
+            </Button>
+          </div>
+        ) : (
+        <form className="space-y-4" onSubmit={(event) => void submitLogin(event)}>
+          <p className="text-sm text-slate-600">
+            {isDemoLoginEmail(loginEmail)
+              ? "Demo accounts open the network immediately. Your own email gets a login link."
+              : "Use the email on your Motel Connect account. We will send a login link. Owners must be admitted. Managers on the roster can log in now."}
+          </p>
+          <Field label="Email">
+            <input
+              type="email"
+              required
+              value={loginEmail}
+              onChange={(event) => setLoginEmail(event.target.value)}
+              className={inputClass}
+              placeholder="you@email.com"
+              autoComplete="email"
+            />
+          </Field>
+          {loginError ? (
+            <p className="text-sm text-amber-800">{loginError}</p>
+          ) : null}
+          <Button type="submit" className="w-full rounded-full" variant="dark" disabled={loggingIn}>
+            {loggingIn
+              ? isDemoLoginEmail(loginEmail)
+                ? "Entering…"
+                : "Sending link…"
+              : isDemoLoginEmail(loginEmail)
+                ? "Enter network"
+                : "Send login link"}
+          </Button>
+        </form>
+        )}
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+            Demo accounts
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {DEMO_LOGINS.map((demo) => (
+              <button
+                key={demo.email}
+                type="button"
+                onClick={() => {
+                  setLoginEmail(demo.email);
+                  setLoginError("");
+                  setLinkSent(false);
+                }}
+                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                {demo.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

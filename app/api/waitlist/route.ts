@@ -1,3 +1,5 @@
+import { nameFromEmail } from "@/lib/managers";
+import { isMissingTable } from "@/lib/supabase/missing";
 import { isSupabaseConfigured, supabaseAdmin } from "@/lib/supabase/admin";
 import type { WaitlistEntry } from "@/lib/types";
 import { randomBytes } from "crypto";
@@ -31,14 +33,30 @@ async function enrolOpenManager(
   admin: ReturnType<typeof supabaseAdmin>,
   email: string,
 ) {
-  const handle = email.split("@")[0]?.replace(/[._-]+/g, " ").trim() || "New manager";
-  const name = handle.replace(/\b\w/g, (letter) => letter.toUpperCase());
   try {
     await admin.from("managers").upsert(
       {
         email,
-        name,
+        name: nameFromEmail(email),
         basket: "open",
+      },
+      { onConflict: "email", ignoreDuplicates: true },
+    );
+  } catch {
+    // Table may not exist until schema.sql is applied.
+  }
+}
+
+async function enrolOwner(
+  admin: ReturnType<typeof supabaseAdmin>,
+  email: string,
+) {
+  try {
+    await admin.from("owners").upsert(
+      {
+        email,
+        name: nameFromEmail(email),
+        admitted: false,
       },
       { onConflict: "email", ignoreDuplicates: true },
     );
@@ -57,7 +75,8 @@ function unavailable() {
 export async function GET() {
   if (!isSupabaseConfigured()) return unavailable();
 
-  const { data, error } = await supabaseAdmin()
+  const admin = supabaseAdmin();
+  const { data, error } = await admin
     .from("waitlist")
     .select("id, email, interest, invite_code, referred_by, created_at")
     .order("created_at", { ascending: false });
@@ -66,9 +85,29 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const waitlist = ((data ?? []) as WaitlistRow[]).map(toEntry);
+
+  const { data: owners, error: ownersError } = await admin
+    .from("owners")
+    .select("email, admitted");
+
+  const admittedByEmail = new Map<string, boolean>();
+  if (!ownersError && owners) {
+    for (const owner of owners) {
+      admittedByEmail.set(String(owner.email).toLowerCase(), Boolean(owner.admitted));
+    }
+  } else if (ownersError && !isMissingTable(ownersError)) {
+    return NextResponse.json({ error: ownersError.message }, { status: 500 });
+  }
+
   return NextResponse.json({
     configured: true,
-    waitlist: ((data ?? []) as WaitlistRow[]).map(toEntry),
+    needsMigration: Boolean(ownersError && isMissingTable(ownersError)),
+    waitlist: waitlist.map((entry) =>
+      entry.interest === "owner"
+        ? { ...entry, admitted: admittedByEmail.get(entry.email.toLowerCase()) ?? false }
+        : entry,
+    ),
   });
 }
 
@@ -107,6 +146,9 @@ export async function POST(request: NextRequest) {
     if (interest === "manager") {
       await enrolOpenManager(admin, email);
     }
+    if (interest === "owner") {
+      await enrolOwner(admin, email);
+    }
     return NextResponse.json({
       configured: true,
       waitlist: toEntry(existing as WaitlistRow),
@@ -134,6 +176,9 @@ export async function POST(request: NextRequest) {
   const entry = toEntry(data as WaitlistRow);
   if (interest === "manager") {
     await enrolOpenManager(admin, email);
+  }
+  if (interest === "owner") {
+    await enrolOwner(admin, email);
   }
 
   return NextResponse.json({ configured: true, waitlist: entry, inviteCode: entry.inviteCode });
