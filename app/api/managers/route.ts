@@ -53,18 +53,23 @@ export async function GET() {
     // Table may not exist until schema.sql is applied.
   }
 
-  let { data, error } = await admin
+  const withProfile = await admin
     .from("managers")
     .select(PROFILE_COLUMNS)
     .order("created_at", { ascending: false });
 
-  if (error && !isMissingTable(error)) {
+  let rows: ManagerRow[] = [];
+  let error = withProfile.error;
+
+  if (!error) {
+    rows = (withProfile.data ?? []) as ManagerRow[];
+  } else if (!isMissingTable(error)) {
     const fallback = await admin
       .from("managers")
       .select(ROSTER_COLUMNS)
       .order("created_at", { ascending: false });
-    data = fallback.data;
     error = fallback.error;
+    rows = (fallback.data ?? []) as ManagerRow[];
   }
 
   if (error) {
@@ -80,7 +85,7 @@ export async function GET() {
 
   return NextResponse.json({
     configured: true,
-    managers: ((data ?? []) as ManagerRow[]).map(toRecord),
+    managers: rows.map(toRecord),
   });
 }
 
