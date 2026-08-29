@@ -20,10 +20,11 @@ import type {
   OwnerReview,
   Persona,
   Session,
+  ManagerRosterRecord,
   SoftwareCategory,
   WaitlistEntry,
 } from "./types";
-import { createOpenManager } from "./managers";
+import { createOpenManager, mergeRoster } from "./managers";
 import { computeVerified, uid } from "./utils";
 
 const STORAGE_KEY = "motel-connect-v2";
@@ -152,6 +153,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const patch = useCallback((updater: (current: AppState) => AppState) => {
     setState((current) => updater(current));
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    let cancelled = false;
+    fetch("/api/managers")
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as { managers?: ManagerRosterRecord[] };
+      })
+      .then((payload) => {
+        if (cancelled || !payload?.managers?.length) return;
+        // Merge the live Supabase roster after LocalStorage hydration.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        patch((current) => ({
+          ...current,
+          managers: mergeRoster(current.managers, payload.managers ?? []),
+        }));
+      })
+      .catch(() => {
+        // Keep the LocalStorage roster when Supabase is not configured.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, patch]);
 
   const enterAs = useCallback((personaId: string) => {
     const persona = personas.find((item) => item.id === personaId);
@@ -479,14 +505,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const adminVerifyManager = useCallback((managerId: string, verified: boolean) => {
-    patch((current) => ({
-      ...current,
-      managers: current.managers.map((manager) =>
-        manager.id === managerId
-          ? refreshManager({ ...manager, verifiedByAdmin: verified })
-          : manager,
-      ),
-    }));
+    let email: string | undefined;
+    patch((current) => {
+      const manager = current.managers.find((item) => item.id === managerId);
+      email = manager?.email;
+      return {
+        ...current,
+        managers: current.managers.map((item) =>
+          item.id === managerId
+            ? refreshManager({ ...item, verifiedByAdmin: verified })
+            : item,
+        ),
+      };
+    });
+    if (!email) return;
+    fetch("/api/managers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        basket: verified ? "premium" : "open",
+      }),
+    }).catch(() => {
+      // Local basket change still applies if the API is unavailable.
+    });
   }, [patch]);
 
   const enqueueSoftware = useCallback((name: string, category: SoftwareCategory) => {

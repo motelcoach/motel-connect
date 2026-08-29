@@ -239,6 +239,18 @@ export type WaitlistEntry = {
   referredBy?: string;
 };
 
+export type ManagerRosterRecord = {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  location: string | null;
+  state: string | null;
+  basket: ManagerBasket;
+  verifiedByAdmin: boolean;
+  createdAt: string;
+};
+
 export type Persona = {
   id: string;
   role: Role;

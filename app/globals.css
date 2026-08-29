@@ -56,9 +56,37 @@ body {
     radial-gradient(ellipse 70% 45% at 50% 108%, rgba(196, 138, 78, 0.22) 0%, transparent 72%);
 }
 
+.hero-copy {
+  container-type: inline-size;
+  width: 100%;
+}
+
 .hero-headline {
-  letter-spacing: 0.02em;
+  letter-spacing: 0.005em;
   line-height: 1;
+  font-size: clamp(1.28rem, 7.15vw, 4.35rem);
+  font-size: clamp(1.28rem, 8.2cqi, 4.35rem);
+}
+
+.hero-headline-line {
+  display: block;
+  white-space: nowrap;
+}
+
+@media (max-width: 380px) {
+  .hero-headline {
+    letter-spacing: 0;
+  }
+
+  .hero-badge {
+    letter-spacing: 0.18em;
+  }
+}
+
+@media (min-width: 640px) {
+  .hero-headline {
+    letter-spacing: 0.02em;
+  }
 }
 
 .hero-gold {

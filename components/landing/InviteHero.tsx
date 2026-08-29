@@ -62,23 +62,23 @@ export function InviteHero() {
         </button>
       </header>
 
-      <div className="relative z-10 mx-auto flex h-[calc(100svh-4.5rem)] max-w-3xl flex-col items-center justify-center px-6 pb-24 text-center">
+      <div className="relative z-10 mx-auto flex h-[calc(100svh-4.5rem)] max-w-3xl flex-col items-center justify-center px-5 pb-10 text-center sm:px-6 sm:pb-24">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          className="flex w-full flex-col items-center"
+          className="hero-copy flex w-full flex-col items-center"
         >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#d4c4a8]">
+          <p className="hero-badge text-[11px] font-semibold uppercase tracking-[0.32em] text-[#d4c4a8]">
             Invite Only Motel Network
           </p>
-          <h1 className="hero-headline mt-7 font-serif text-[2.85rem] font-medium text-[#f6f1e8] sm:text-6xl md:text-[4.35rem]">
-            <span className="block">
+          <h1 className="hero-headline mt-5 font-serif font-medium text-[#f6f1e8] sm:mt-7">
+            <span className="hero-headline-line">
               Quality. <span className="hero-gold">Trusted.</span>
             </span>
-            <span className="mt-[0.32em] block">Motel Managers.</span>
+            <span className="hero-headline-line mt-[0.32em]">Motel Managers.</span>
           </h1>
-          <p className="mt-8 max-w-xl text-[17px] leading-[1.55] text-[#f3eee6]/72">
+          <p className="mt-5 max-w-[20.5rem] text-[15px] leading-[1.5] text-[#f3eee6]/72 sm:mt-8 sm:max-w-xl sm:text-[17px] sm:leading-[1.55]">
             Recruit Relief, Permanent, Couple and Individual Motel Managers.
           </p>
 
@@ -93,7 +93,7 @@ export function InviteHero() {
               void submitInvite(event);
               setInviteOpen(true);
             }}
-            className="mt-12 flex w-full max-w-lg items-center rounded-full border border-[#f3eee6]/20 bg-[#f3eee6]/10 p-1.5 pl-5 shadow-[0_18px_50px_rgba(8,20,18,0.28)] backdrop-blur-sm"
+            className="mt-8 flex w-full max-w-lg items-center rounded-full border border-[#f3eee6]/20 bg-[#f3eee6]/10 p-1.5 pl-4 shadow-[0_18px_50px_rgba(8,20,18,0.28)] backdrop-blur-sm sm:mt-12 sm:pl-5"
           >
             <input
               type="email"
@@ -105,9 +105,14 @@ export function InviteHero() {
             <button
               type="submit"
               disabled={submitting}
-              className="shrink-0 rounded-full bg-[#f3eee6] px-5 py-2.5 text-sm font-semibold text-[#163832] transition hover:bg-white disabled:opacity-70"
+              className="shrink-0 rounded-full bg-[#f3eee6] px-4 py-2.5 text-sm font-semibold text-[#163832] transition hover:bg-white disabled:opacity-70 sm:px-5"
             >
-              {submitting ? "Requesting…" : "Request invite"}
+              {submitting ? "Requesting…" : (
+                <>
+                  <span className="sm:hidden">Request</span>
+                  <span className="hidden sm:inline">Request invite</span>
+                </>
+              )}
             </button>
           </form>
         </motion.div>

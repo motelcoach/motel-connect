@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Newsreader, Source_Sans_3 } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   title: "Motel Connect — Quality Trusted Motel Managers",
   description:
     "Invite-only network connecting owners with pre-vetted relief and permanent managers.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -21,6 +21,8 @@ export function AdminDashboard() {
   const [logId, setLogId] = useState<string | null>(null);
   const [remoteWaitlist, setRemoteWaitlist] = useState<WaitlistEntry[] | null>(null);
   const [waitlistSource, setWaitlistSource] = useState<"supabase" | "local">("local");
+  const [rosterSource, setRosterSource] = useState<"supabase" | "local">("local");
+  const [needsRosterTable, setNeedsRosterTable] = useState(false);
 
   useEffect(() => {
     if (session?.role !== "admin") return;
@@ -37,6 +39,20 @@ export function AdminDashboard() {
       })
       .catch(() => {
         if (!cancelled) setWaitlistSource("local");
+      });
+    fetch("/api/managers")
+      .then(async (response) => {
+        if (cancelled) return;
+        if (!response.ok) {
+          setRosterSource("local");
+          return;
+        }
+        const payload = (await response.json()) as { needsMigration?: boolean };
+        setRosterSource("supabase");
+        setNeedsRosterTable(Boolean(payload.needsMigration));
+      })
+      .catch(() => {
+        if (!cancelled) setRosterSource("local");
       });
     return () => {
       cancelled = true;
@@ -103,7 +119,11 @@ export function AdminDashboard() {
       <section className="space-y-3">
         <h2 className="font-semibold text-slate-900">Manager baskets</h2>
         <p className="text-sm text-slate-500">
-          Non-vetted stay in the database. Admin pass moves them to Premium.
+          {needsRosterTable
+            ? "Supabase is connected. Run supabase/schema.sql in the SQL editor to create the managers table."
+            : rosterSource === "supabase"
+              ? "Live roster stored in Supabase. Non-vetted stay in the database. Admin pass moves them to Premium."
+              : "This browser only — add Supabase keys to share the roster. Non-vetted stay listed. Admin pass moves them to Premium."}
         </p>
         {managers.map((manager) => (
           <div

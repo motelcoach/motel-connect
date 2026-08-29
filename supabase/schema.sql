@@ -1,5 +1,5 @@
--- Motel Connect v2 — first backend slice.
--- Run this in the Supabase SQL editor. The waitlist is live; other tables come next.
+-- Motel Connect v2 — waitlist + manager roster.
+-- Run this in the Supabase SQL editor. Safe to re-run.
 
 create extension if not exists pgcrypto;
 
@@ -39,3 +39,13 @@ create unique index if not exists managers_email_lower
   on public.managers (lower(email));
 
 alter table public.managers enable row level security;
+
+-- Anyone already on the manager waitlist lands on the open roster.
+insert into public.managers (email, name, basket)
+select
+  lower(email),
+  initcap(replace(split_part(email, '@', 1), '.', ' ')),
+  'open'
+from public.waitlist
+where interest = 'manager'
+on conflict (email) do nothing;
