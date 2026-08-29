@@ -4,6 +4,8 @@ export type Role =
   | "unverified_manager"
   | "admin";
 
+export type ManagerBasket = "premium" | "open";
+
 export type AustralianState =
   | "QLD"
   | "NSW"

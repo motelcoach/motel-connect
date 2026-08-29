@@ -39,6 +39,23 @@ export function ManagerList() {
 
   const results = useMemo(() => filterManagers(managers, filters), [managers, filters]);
   const canPropose = session ? canDispatchProposals(session.role) : false;
+  const premiumCount = managers.filter((manager) => manager.isVerified).length;
+  const openCount = managers.length - premiumCount;
+
+  const basketCopy = {
+    premium: {
+      title: "Premium managers",
+      note: "Vetted. Two owner references, or an admin pass. Owners hire from here.",
+    },
+    open: {
+      title: "Non-vetted managers",
+      note: "Everyone who joins lands here. Visible in the roster. Proposals stay locked until they earn Premium.",
+    },
+    all: {
+      title: "All managers",
+      note: "Open roster plus Premium. Filter by basket to hire with the right trust level.",
+    },
+  }[filters.basket];
 
   function sendProposal() {
     if (!selected) return;
@@ -57,9 +74,10 @@ export function ManagerList() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-800">
             Discovery
           </p>
-          <h1 className="font-serif text-3xl text-slate-900">Vetted motel managers</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {results.length} of {managers.length} in the network
+          <h1 className="font-serif text-3xl text-slate-900">{basketCopy.title}</h1>
+          <p className="mt-1 max-w-xl text-sm text-slate-600">{basketCopy.note}</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {results.length} showing · {premiumCount} Premium · {openCount} Non-vetted
           </p>
         </div>
         <div className="flex rounded-xl border border-slate-200 bg-white p-1">
@@ -82,6 +100,29 @@ export function ManagerList() {
             <Map className="h-4 w-4" /> Map
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            ["premium", `Premium · ${premiumCount}`],
+            ["open", `Non-vetted · ${openCount}`],
+            ["all", `All · ${managers.length}`],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            onClick={() => setFilters({ ...filters, basket: value })}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-semibold transition",
+              filters.basket === value
+                ? "bg-slate-900 text-white"
+                : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+            )}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="soft-panel grid gap-3 rounded-2xl p-4 md:grid-cols-4">
@@ -175,16 +216,6 @@ export function ManagerList() {
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
-            checked={filters.verifiedOnly}
-            onChange={(event) =>
-              setFilters({ ...filters, verifiedOnly: event.target.checked })
-            }
-          />
-          Verified only
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
             checked={filters.liquor}
             onChange={(event) => setFilters({ ...filters, liquor: event.target.checked })}
           />
@@ -250,7 +281,7 @@ export function ManagerList() {
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1">
                     <Badge tone={manager.isVerified ? "teal" : "amber"}>
-                      {manager.isVerified ? "Verified" : "Pending"}
+                      {manager.isVerified ? "Premium" : "Non-vetted"}
                     </Badge>
                     <Badge>{manager.profileType}</Badge>
                     {manager.liquorLicensing ? <Badge tone="emerald">Liquor</Badge> : null}
@@ -294,7 +325,7 @@ export function ManagerList() {
               <div>
                 <div className="flex flex-wrap gap-1">
                   <Badge tone={selected.isVerified ? "teal" : "amber"}>
-                    {selected.isVerified ? "Verified" : "Unverified"}
+                    {selected.isVerified ? "Premium" : "Non-vetted"}
                   </Badge>
                   <Badge>{selected.profileType}</Badge>
                   <Badge>{selected.rightToWork}</Badge>
@@ -340,7 +371,8 @@ export function ManagerList() {
             ) : null}
             {canPropose && !selected.isVerified ? (
               <p className="text-sm text-amber-800">
-                Proposals unlock once this manager is verified.
+                This manager is on the open roster. Dispatch a proposal once they
+                are Premium.
               </p>
             ) : null}
           </div>

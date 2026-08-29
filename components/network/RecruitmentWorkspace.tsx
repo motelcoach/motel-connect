@@ -232,7 +232,7 @@ export function RecruitmentWorkspace() {
           <h3 className="font-semibold text-slate-900">Secure chat</h3>
           {!chatOn ? (
             <p className="mt-2 text-sm text-slate-500">
-              Chat unlocks after mutual NDA. Unverified managers remain locked.
+              Chat unlocks after mutual NDA. Non-vetted managers remain locked.
             </p>
           ) : (
             <>

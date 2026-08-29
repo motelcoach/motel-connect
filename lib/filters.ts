@@ -4,9 +4,11 @@ import type {
   AdvisorReview,
   AustralianState,
   JobType,
+  ManagerBasket,
   ManagerProfile,
   ProfileType,
 } from "./types";
+import { managerBasket } from "./managers";
 import { average } from "./utils";
 
 export type ManagerFilters = {
@@ -22,7 +24,7 @@ export type ManagerFilters = {
   liquor: boolean;
   events: boolean;
   restaurant: boolean;
-  verifiedOnly: boolean;
+  basket: ManagerBasket | "all";
 };
 
 export const defaultManagerFilters = (): ManagerFilters => ({
@@ -38,7 +40,7 @@ export const defaultManagerFilters = (): ManagerFilters => ({
   liquor: false,
   events: false,
   restaurant: false,
-  verifiedOnly: false,
+  basket: "premium",
 });
 
 function dateRangeClear(blockouts: string[], start: string, end: string) {
@@ -56,7 +58,9 @@ export function filterManagers(managers: ManagerProfile[], filters: ManagerFilte
   const q = filters.query.trim().toLowerCase();
 
   return managers.filter((manager) => {
-    if (filters.verifiedOnly && !manager.isVerified) return false;
+    if (filters.basket !== "all" && managerBasket(manager) !== filters.basket) {
+      return false;
+    }
     if (filters.profileType !== "Any" && manager.profileType !== filters.profileType) {
       return false;
     }

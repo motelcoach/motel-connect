@@ -25,7 +25,7 @@ export const personas: Persona[] = [
   {
     id: "persona-verified",
     role: "verified_manager",
-    label: "Verified Manager",
+    label: "Premium Manager",
     name: "Marcus & Priya Brennan",
     subtitle: "Couple · GuestPoint · NSW / QLD liquor",
     photoUrl: portrait("photo-1500648767791-00dcc994a43e"),
@@ -34,7 +34,7 @@ export const personas: Persona[] = [
   {
     id: "persona-unverified",
     role: "unverified_manager",
-    label: "Unverified Manager",
+    label: "Non-vetted Manager",
     name: "Jamie Cole",
     subtitle: "Solo · Pending owner references",
     photoUrl: portrait("photo-1507003211169-0a1dd7228f2d"),

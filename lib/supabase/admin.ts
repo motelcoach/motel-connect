@@ -1,13 +1,24 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+function readEnv(name: string) {
+  return { ...process.env }[name];
+}
+
+function supabaseUrl() {
+  return readEnv("SUPABASE_URL") ?? readEnv("NEXT_PUBLIC_SUPABASE_URL");
+}
+
+function supabaseServiceKey() {
+  return readEnv("SUPABASE_SERVICE_ROLE_KEY") ?? readEnv("SUPABASE_SECRET_KEY");
+}
+
 export function isSupabaseConfigured() {
-  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-  return Boolean(url && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(supabaseUrl() && supabaseServiceKey());
 }
 
 export function supabaseAdmin(): SupabaseClient {
-  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = supabaseUrl();
+  const key = supabaseServiceKey();
   if (!url || !key) {
     throw new Error("Supabase is not configured");
   }

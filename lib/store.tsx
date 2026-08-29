@@ -23,6 +23,7 @@ import type {
   SoftwareCategory,
   WaitlistEntry,
 } from "./types";
+import { createOpenManager } from "./managers";
 import { computeVerified, uid } from "./utils";
 
 const STORAGE_KEY = "motel-connect-v2";
@@ -179,6 +180,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         referredBy,
       };
 
+      const enrolManager = (current: AppState): AppState => {
+        if (interest !== "manager") return current;
+        if (current.managers.some((manager) => manager.email.toLowerCase() === email.toLowerCase())) {
+          return current;
+        }
+        return {
+          ...current,
+          managers: [createOpenManager(email), ...current.managers],
+        };
+      };
+
       try {
         const response = await fetch("/api/waitlist", {
           method: "POST",
@@ -191,26 +203,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         };
         const remote = payload.waitlist;
         if (response.ok && remote) {
-          patch((current) => ({
-            ...current,
-            waitlist: current.waitlist.some((entry) => entry.email === remote.email)
-              ? current.waitlist.map((entry) =>
-                  entry.email === remote.email ? remote : entry,
-                )
-              : [remote, ...current.waitlist],
-          }));
+          patch((current) => {
+            const withWaitlist = {
+              ...current,
+              waitlist: current.waitlist.some((entry) => entry.email === remote.email)
+                ? current.waitlist.map((entry) =>
+                    entry.email === remote.email ? remote : entry,
+                  )
+                : [remote, ...current.waitlist],
+            };
+            return enrolManager(withWaitlist);
+          });
           return payload.inviteCode ?? remote.inviteCode;
         }
       } catch {
         // Fall through to LocalStorage when Supabase is not configured.
       }
 
-      patch((current) => ({
-        ...current,
-        waitlist: current.waitlist.some((entry) => entry.email === email)
-          ? current.waitlist
-          : [localEntry, ...current.waitlist],
-      }));
+      patch((current) => {
+        const withWaitlist = {
+          ...current,
+          waitlist: current.waitlist.some((entry) => entry.email === email)
+            ? current.waitlist
+            : [localEntry, ...current.waitlist],
+        };
+        return enrolManager(withWaitlist);
+      });
       return localEntry.inviteCode;
     },
     [patch],

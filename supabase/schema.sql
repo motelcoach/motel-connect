@@ -20,5 +20,22 @@ create unique index if not exists waitlist_invite_code
 
 alter table public.waitlist enable row level security;
 
--- No anon policies. Inserts and admin reads go through the Next.js API
--- with the service role key, which bypasses RLS.
+-- Manager roster. Everyone who joins lands as open (Non-vetted).
+-- Premium is earned: two vetted owner references, or an admin pass.
+
+create table if not exists public.managers (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  name text not null default '',
+  phone text,
+  location text,
+  state text,
+  basket text not null default 'open' check (basket in ('premium', 'open')),
+  verified_by_admin boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists managers_email_lower
+  on public.managers (lower(email));
+
+alter table public.managers enable row level security;

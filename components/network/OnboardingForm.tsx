@@ -113,10 +113,10 @@ function OnboardingFields({ initial }: { initial: ManagerProfile }) {
         </p>
         <h1 className="font-serif text-3xl text-slate-900">Manager onboarding</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Solo and couple profiles. Verification requires two owner references or
-          an admin override.
+          Solo and couple profiles. You join as Non-vetted. Premium requires two
+          owner references or an admin pass.
         </p>
-        {form.isVerified ? <Badge tone="teal">Verified</Badge> : <Badge tone="amber">Pending verification</Badge>}
+        {form.isVerified ? <Badge tone="teal">Premium</Badge> : <Badge tone="amber">Non-vetted</Badge>}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

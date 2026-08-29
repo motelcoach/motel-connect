@@ -139,8 +139,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {unverified ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
-          Your profile is pending. Messaging, proposals and reviews unlock after two
-          verified owner references.
+          Your profile is on the open roster. Messaging, proposals and reviews
+          unlock when you reach Premium — two vetted owner references.
         </div>
       ) : null}
 

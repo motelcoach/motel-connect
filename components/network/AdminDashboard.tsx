@@ -101,7 +101,10 @@ export function AdminDashboard() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-semibold text-slate-900">Verification overrides</h2>
+        <h2 className="font-semibold text-slate-900">Manager baskets</h2>
+        <p className="text-sm text-slate-500">
+          Non-vetted stay in the database. Admin pass moves them to Premium.
+        </p>
         {managers.map((manager) => (
           <div
             key={manager.id}
@@ -110,14 +113,14 @@ export function AdminDashboard() {
             <p className="text-sm">
               {manager.name}{" "}
               <Badge tone={manager.isVerified ? "teal" : "amber"}>
-                {manager.isVerified ? "Verified" : "Unverified"}
+                {manager.isVerified ? "Premium" : "Non-vetted"}
               </Badge>
             </p>
             <Button
               variant="secondary"
               onClick={() => adminVerifyManager(manager.id, !manager.verifiedByAdmin)}
             >
-              {manager.verifiedByAdmin ? "Clear override" : "Admin verify"}
+              {manager.verifiedByAdmin ? "Return to Non-vetted" : "Move to Premium"}
             </Button>
           </div>
         ))}

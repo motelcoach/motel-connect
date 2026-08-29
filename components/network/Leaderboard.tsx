@@ -26,8 +26,8 @@ export function Leaderboard() {
           </p>
           <h1 className="font-serif text-3xl text-slate-900">Regional leaderboard</h1>
           <p className="mt-1 max-w-xl text-sm text-slate-600">
-            Score from verified completed shifts, rehire rate, owner ratings and
-            regional experience. Unverified managers are excluded.
+            Score from completed Premium shifts, rehire rate, owner ratings and
+            regional experience. Non-vetted managers are excluded.
           </p>
         </div>
         <select

@@ -49,23 +49,14 @@ export function InviteHero() {
   }
 
   return (
-    <div className="hero-lock relative text-white">
-      <Image
-        src="/hero-motel.jpg"
-        alt=""
-        fill
-        priority
-        className="object-cover object-[center_55%]"
-      />
-      <div className="hero-scrim absolute inset-0" />
-
+    <div className="hero-lock relative">
       <header className="relative z-10 flex items-center justify-between px-6 py-5 md:px-10">
-        <p className="text-[13px] font-semibold tracking-[0.22em] uppercase">
+        <p className="text-[13px] font-semibold tracking-[0.22em] uppercase text-[#f3eee6]">
           Motel Connect
         </p>
         <button
           onClick={() => setRolesOpen(true)}
-          className="text-sm font-medium text-white/80 transition hover:text-white"
+          className="text-sm font-medium text-[#f3eee6]/70 transition hover:text-[#f3eee6]"
         >
           Enter
         </button>
@@ -78,14 +69,17 @@ export function InviteHero() {
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           className="flex w-full flex-col items-center"
         >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/70">
-            Invite only
+          <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#d4c4a8]">
+            Invite Only Motel Network
           </p>
-          <h1 className="mt-5 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.35)] sm:text-6xl md:text-[4.5rem]">
-            Quality. Trusted. Managers.
+          <h1 className="hero-headline mt-7 font-serif text-[2.85rem] font-medium text-[#f6f1e8] sm:text-6xl md:text-[4.35rem]">
+            <span className="block">
+              Quality. <span className="hero-gold">Trusted.</span>
+            </span>
+            <span className="mt-[0.32em] block">Motel Managers.</span>
           </h1>
-          <p className="mt-6 max-w-md text-[17px] leading-relaxed text-white/85 drop-shadow-[0_1px_12px_rgba(0,0,0,0.4)]">
-            Owners invite managers. We do not take walk-ins.
+          <p className="mt-8 max-w-xl text-[17px] leading-[1.55] text-[#f3eee6]/72">
+            Recruit Relief, Permanent, Couple and Individual Motel Managers.
           </p>
 
           <form
@@ -99,19 +93,19 @@ export function InviteHero() {
               void submitInvite(event);
               setInviteOpen(true);
             }}
-            className="mt-10 flex w-full max-w-lg items-center rounded-full border border-white/30 bg-white/18 p-1.5 pl-5 shadow-[0_12px_40px_rgba(0,0,0,0.18)] backdrop-blur-md"
+            className="mt-12 flex w-full max-w-lg items-center rounded-full border border-[#f3eee6]/20 bg-[#f3eee6]/10 p-1.5 pl-5 shadow-[0_18px_50px_rgba(8,20,18,0.28)] backdrop-blur-sm"
           >
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="Enter your email"
-              className="min-w-0 flex-1 bg-transparent text-[15px] text-white outline-none placeholder:text-white/55"
+              className="min-w-0 flex-1 bg-transparent text-[15px] text-[#f6f1e8] outline-none placeholder:text-[#f3eee6]/45"
             />
             <button
               type="submit"
               disabled={submitting}
-              className="shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white/90 disabled:opacity-70"
+              className="shrink-0 rounded-full bg-[#f3eee6] px-5 py-2.5 text-sm font-semibold text-[#163832] transition hover:bg-white disabled:opacity-70"
             >
               {submitting ? "Requesting…" : "Request invite"}
             </button>
@@ -127,8 +121,9 @@ export function InviteHero() {
         {submitted ? (
           <div className="space-y-4">
             <p className="text-slate-600">
-              Seats open when an owner vouches. Share your link — two people can
-              skip the queue with you.
+              {interest === "manager"
+                ? "You're on the open roster as Non-vetted. Share your link — owners still come by invite, and Premium is earned when two of them vouch."
+                : "Seats open when we admit owners. Share your link — two people can skip the queue with you."}
             </p>
             <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
               <code className="min-w-0 flex-1 truncate text-sm text-slate-700">
@@ -149,7 +144,9 @@ export function InviteHero() {
             void submitInvite(event);
           }}>
             <p className="text-sm text-slate-600">
-              Owners are admitted first. Managers join when an owner invites them.
+              {interest === "manager"
+                ? "Join the database now. You land as Non-vetted. Premium (hire, chat, reviews) unlocks after two vetted owner references."
+                : "Owners are admitted first. Live owner seats stay invite-only."}
             </p>
             <Field label="Email">
               <input
@@ -201,7 +198,8 @@ export function InviteHero() {
             >
               <h2 className="font-serif text-3xl text-slate-900">Enter</h2>
               <p className="mt-2 max-w-lg text-sm text-slate-500">
-                Demo access. Live seats stay invite-only.
+                Demo access. Owners stay invite-only. Managers join the open
+                roster, then earn Premium.
               </p>
               <div className="mt-6 grid gap-2 sm:grid-cols-2">
                 {personas.map((persona) => (

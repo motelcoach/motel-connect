@@ -27,6 +27,26 @@ function toEntry(row: WaitlistRow): WaitlistEntry {
   };
 }
 
+async function enrolOpenManager(
+  admin: ReturnType<typeof supabaseAdmin>,
+  email: string,
+) {
+  const handle = email.split("@")[0]?.replace(/[._-]+/g, " ").trim() || "New manager";
+  const name = handle.replace(/\b\w/g, (letter) => letter.toUpperCase());
+  try {
+    await admin.from("managers").upsert(
+      {
+        email,
+        name,
+        basket: "open",
+      },
+      { onConflict: "email", ignoreDuplicates: true },
+    );
+  } catch {
+    // Table may not exist until schema.sql is applied.
+  }
+}
+
 function unavailable() {
   return NextResponse.json(
     { error: "Supabase is not configured", configured: false },
@@ -84,6 +104,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: existingError.message }, { status: 500 });
   }
   if (existing) {
+    if (interest === "manager") {
+      await enrolOpenManager(admin, email);
+    }
     return NextResponse.json({
       configured: true,
       waitlist: toEntry(existing as WaitlistRow),
@@ -109,5 +132,9 @@ export async function POST(request: NextRequest) {
   }
 
   const entry = toEntry(data as WaitlistRow);
+  if (interest === "manager") {
+    await enrolOpenManager(admin, email);
+  }
+
   return NextResponse.json({ configured: true, waitlist: entry, inviteCode: entry.inviteCode });
 }
