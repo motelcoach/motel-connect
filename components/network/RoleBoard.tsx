@@ -106,7 +106,7 @@ export function RoleBoard() {
             .filter((manager): manager is ManagerProfile => Boolean(manager));
           const alreadyIn =
             Boolean(session?.managerId) &&
-            listing.interestedManagerIds.includes(session.managerId ?? "");
+            listing.interestedManagerIds.includes(session?.managerId ?? "");
 
           return (
             <div key={listing.id} className="soft-panel space-y-3 rounded-2xl p-5">
