@@ -23,6 +23,8 @@ export function AdminDashboard() {
   const [waitlistSource, setWaitlistSource] = useState<"supabase" | "local">("local");
   const [rosterSource, setRosterSource] = useState<"supabase" | "local">("local");
   const [needsRosterTable, setNeedsRosterTable] = useState(false);
+  const [needsOwnersTable, setNeedsOwnersTable] = useState(false);
+  const [admittingEmail, setAdmittingEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (session?.role !== "admin") return;
@@ -30,12 +32,16 @@ export function AdminDashboard() {
     fetch("/api/waitlist")
       .then(async (response) => {
         if (!response.ok) return null;
-        return (await response.json()) as { waitlist?: WaitlistEntry[] };
+        return (await response.json()) as {
+          waitlist?: WaitlistEntry[];
+          needsMigration?: boolean;
+        };
       })
       .then((payload) => {
         if (cancelled || !payload?.waitlist) return;
         setRemoteWaitlist(payload.waitlist);
         setWaitlistSource("supabase");
+        setNeedsOwnersTable(Boolean(payload.needsMigration));
       })
       .catch(() => {
         if (!cancelled) setWaitlistSource("local");
@@ -70,6 +76,36 @@ export function AdminDashboard() {
   );
   const disputes = contracts.filter((job) => job.disputed && job.disputeStatus === "Open");
   const logContract = contracts.find((job) => job.id === logId);
+  const listedWaitlist = remoteWaitlist ?? waitlist;
+  const ownerInvites = listedWaitlist.filter((entry) => entry.interest === "owner");
+  const managerSignups = listedWaitlist.filter((entry) => entry.interest === "manager");
+
+  async function setOwnerAccess(email: string, admitted: boolean) {
+    setAdmittingEmail(email);
+    try {
+      const response = await fetch("/api/owners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, admitted }),
+      });
+      const payload = (await response.json()) as { needsMigration?: boolean; error?: string };
+      if (payload.needsMigration) {
+        setNeedsOwnersTable(true);
+        return;
+      }
+      if (!response.ok) return;
+      setRemoteWaitlist((current) =>
+        (current ?? listedWaitlist).map((entry) =>
+          entry.email.toLowerCase() === email.toLowerCase()
+            ? { ...entry, admitted }
+            : entry,
+        ),
+      );
+      setWaitlistSource("supabase");
+    } finally {
+      setAdmittingEmail(null);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -79,6 +115,49 @@ export function AdminDashboard() {
         </p>
         <h1 className="font-serif text-3xl text-slate-900">Admin command centre</h1>
       </div>
+
+      <section className="space-y-3">
+        <h2 className="font-semibold text-slate-900">Owner invites</h2>
+        <p className="text-sm text-slate-500">
+          {needsOwnersTable
+            ? "Supabase is connected. Run supabase/schema.sql in the SQL editor to create the owners table."
+            : waitlistSource === "supabase"
+              ? "Owners stay off the network until you admit them. Then they can log in."
+              : "This browser only — add Supabase keys to admit owners for everyone."}
+        </p>
+        {ownerInvites.map((entry) => (
+          <div
+            key={entry.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3"
+          >
+            <p className="text-sm">
+              {entry.email}{" "}
+              <Badge tone={entry.admitted ? "teal" : "amber"}>
+                {entry.admitted ? "Admitted" : "Waitlist"}
+              </Badge>
+              <span className="mt-1 block text-xs text-slate-500">
+                {entry.inviteCode ?? "—"}
+                {entry.referredBy ? ` · via ${entry.referredBy}` : ""} ·{" "}
+                {formatDateTime(entry.createdAt)}
+              </span>
+            </p>
+            <Button
+              variant={entry.admitted ? "secondary" : "dark"}
+              disabled={admittingEmail === entry.email || needsOwnersTable}
+              onClick={() => void setOwnerAccess(entry.email, !entry.admitted)}
+            >
+              {admittingEmail === entry.email
+                ? "Saving…"
+                : entry.admitted
+                  ? "Revoke access"
+                  : "Admit owner"}
+            </Button>
+          </div>
+        ))}
+        {!ownerInvites.length ? (
+          <p className="text-sm text-slate-500">No owner invite requests yet.</p>
+        ) : null}
+      </section>
 
       <section className="space-y-3">
         <h2 className="font-semibold text-slate-900">Reference moderation</h2>
@@ -230,25 +309,21 @@ export function AdminDashboard() {
         ) : null}
       </section>
 
-      <section>
-        <h2 className="font-semibold text-slate-900">Invite waitlist</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          {waitlistSource === "supabase"
-            ? "Stored in Supabase"
-            : "This browser only — add Supabase keys to share the list"}
+      <section className="space-y-3">
+        <h2 className="font-semibold text-slate-900">Manager signups</h2>
+        <p className="text-sm text-slate-500">
+          Managers join the open roster as soon as they request access. No admit step.
         </p>
-        <div className="mt-2 space-y-2">
-          {(remoteWaitlist ?? waitlist).map((entry) => (
-            <p key={entry.id} className="text-sm text-slate-600">
-              {entry.email} · {entry.interest} · {entry.inviteCode ?? "—"}
-              {entry.referredBy ? ` · via ${entry.referredBy}` : ""} ·{" "}
-              {formatDateTime(entry.createdAt)}
-            </p>
-          ))}
-          {!(remoteWaitlist ?? waitlist).length ? (
-            <p className="text-sm text-slate-500">No invite requests yet.</p>
-          ) : null}
-        </div>
+        {managerSignups.map((entry) => (
+          <p key={entry.id} className="text-sm text-slate-600">
+            {entry.email} · on roster · {entry.inviteCode ?? "—"}
+            {entry.referredBy ? ` · via ${entry.referredBy}` : ""} ·{" "}
+            {formatDateTime(entry.createdAt)}
+          </p>
+        ))}
+        {!managerSignups.length ? (
+          <p className="text-sm text-slate-500">No manager signups yet.</p>
+        ) : null}
       </section>
     </div>
   );

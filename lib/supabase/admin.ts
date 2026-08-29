@@ -4,8 +4,12 @@ function readEnv(name: string) {
   return { ...process.env }[name];
 }
 
-function supabaseUrl() {
+export function supabaseUrl() {
   return readEnv("SUPABASE_URL") ?? readEnv("NEXT_PUBLIC_SUPABASE_URL");
+}
+
+export function supabaseAnonKey() {
+  return readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY") ?? readEnv("SUPABASE_ANON_KEY");
 }
 
 function supabaseServiceKey() {

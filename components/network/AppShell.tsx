@@ -1,5 +1,6 @@
 "use client";
 
+import { DEFAULT_PHOTO } from "@/lib/accounts";
 import { isManagerRole, navItems } from "@/lib/permissions";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -12,12 +13,13 @@ import { useEffect, useState, type ReactNode } from "react";
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, hydrated, personas, enterAs, signOut, currentManager, currentOwner } =
-    useStore();
+  const { session, hydrated, signOut, currentManager, currentOwner } = useStore();
   const [switchOpen, setSwitchOpen] = useState(false);
 
   useEffect(() => {
-    if (hydrated && !session) router.replace("/");
+    if (!hydrated || session) return;
+    const timer = window.setTimeout(() => router.replace("/"), 600);
+    return () => window.clearTimeout(timer);
   }, [hydrated, session, router]);
 
   if (!hydrated || !session) {
@@ -29,10 +31,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   const items = navItems(session.role);
-  const persona = personas.find((item) => item.id === session.personaId);
   const unverified =
     session.role === "unverified_manager" ||
     (isManagerRole(session.role) && currentManager && !currentManager.isVerified);
+  const photoUrl = session.photoUrl || DEFAULT_PHOTO;
 
   return (
     <div className="min-h-svh bg-[#f4f7fa]">
@@ -66,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pr-3 pl-1 text-left"
             >
               <Image
-                src={persona?.photoUrl ?? ""}
+                src={photoUrl}
                 alt=""
                 width={32}
                 height={32}
@@ -74,46 +76,26 @@ export function AppShell({ children }: { children: ReactNode }) {
               />
               <span className="hidden sm:block">
                 <span className="block text-xs font-semibold text-slate-900">
-                  {persona?.name}
+                  {session.name}
                 </span>
-                <span className="block text-[11px] text-slate-500">{persona?.label}</span>
+                <span className="block text-[11px] text-slate-500">{session.label}</span>
               </span>
               <ChevronDown className="h-4 w-4 text-slate-500" />
             </button>
             {switchOpen ? (
-              <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                {personas.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      enterAs(item.id);
-                      setSwitchOpen(false);
-                      router.push("/network/managers");
-                    }}
-                    className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm hover:bg-slate-50"
-                  >
-                    <Image
-                      src={item.photoUrl}
-                      alt=""
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded-full object-cover"
-                    />
-                    <span>
-                      <span className="block font-medium text-slate-900">{item.label}</span>
-                      <span className="block text-xs text-slate-500">{item.name}</span>
-                    </span>
-                  </button>
-                ))}
+              <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                <p className="px-3 py-2 text-xs text-slate-500">
+                  {session.email || "Signed in"}
+                </p>
                 <button
                   onClick={() => {
                     signOut();
                     router.push("/");
                   }}
-                  className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
                 >
                   <LogOut className="h-4 w-4" />
-                  Leave network
+                  Log out
                 </button>
               </div>
             ) : null}

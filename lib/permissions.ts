@@ -37,10 +37,10 @@ export function isManagerRole(role: Role) {
 export function navItems(role: Role) {
   const items = [
     { href: "/network/managers", label: "Managers" },
+    { href: "/network/roles", label: "Roles" },
     { href: "/network/workspace", label: "Workspace" },
     { href: "/network/reviews", label: "Reviews" },
     { href: "/network/advisors", label: "Advisors" },
-    { href: "/network/leaderboard", label: "Leaderboard" },
   ];
 
   if (isManagerRole(role) || role === "admin") {
@@ -52,4 +52,12 @@ export function navItems(role: Role) {
   }
 
   return items;
+}
+
+export function canListRoles(role: Role) {
+  return role === "owner" || role === "admin";
+}
+
+export function canExpressRoleInterest(role: Role) {
+  return role === "verified_manager" || role === "admin";
 }
