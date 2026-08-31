@@ -210,9 +210,9 @@ export function filterListedRoles(roles: ListedRole[], filters: RoleFilters) {
     if (!rangesOverlap(role.startDate, role.endDate, filters.startDate, filters.endDate)) {
       return false;
     }
-    if (filters.pms && brief.pms !== filters.pms) return false;
-    if (filters.pos && brief.pos !== filters.pos) return false;
-    if (filters.hr && brief.hr !== filters.hr) return false;
+    if (filters.pms && !brief.pms.includes(filters.pms)) return false;
+    if (filters.pos && !brief.pos.includes(filters.pos)) return false;
+    if (filters.hr && !brief.hr.includes(filters.hr)) return false;
     if (filters.liquor && !brief.liquorRequired) return false;
     if (filters.events && !brief.eventsRequired) return false;
     if (filters.restaurant && !brief.restaurantRequired) return false;
@@ -222,8 +222,9 @@ export function filterListedRoles(roles: ListedRole[], filters: RoleFilters) {
         role.location,
         role.ownerName,
         role.notes,
-        brief.pms,
-        brief.pos,
+        brief.pms.join(" "),
+        brief.pos.join(" "),
+        brief.hr.join(" "),
         brief.otherSystems,
         brief.occupancyNotes,
         brief.livingQuarters,

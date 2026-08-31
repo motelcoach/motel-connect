@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge, Button, Field, inputClass } from "@/components/ui";
+import { managerSharePath } from "@/lib/public-manager";
 import { useStore } from "@/lib/store";
 import type {
   ExperienceBand,
@@ -16,6 +17,8 @@ import {
   WORK_RIGHTS,
 } from "@/lib/types";
 import { uid } from "@/lib/utils";
+import { Check, Copy } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 const emptyManager = (id: string): ManagerProfile => ({
@@ -76,6 +79,16 @@ function OnboardingFields({ initial }: { initial: ManagerProfile }) {
   const [customName, setCustomName] = useState("");
   const [customCat, setCustomCat] = useState<"PMS" | "POS" | "HR">("PMS");
   const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const sharePath = managerSharePath(form.id);
+  const shareUrl =
+    typeof window === "undefined" ? sharePath : `${window.location.origin}${sharePath}`;
+
+  async function copyShareLink() {
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
 
   function toggleArray<T>(list: T[], value: T) {
     return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
@@ -111,12 +124,34 @@ function OnboardingFields({ initial }: { initial: ManagerProfile }) {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-800">
           Portfolio
         </p>
-        <h1 className="font-serif text-3xl text-slate-900">Manager onboarding</h1>
+        <h1 className="font-serif text-3xl text-slate-900">Your profile</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Solo and couple profiles. You join as Non-vetted. Premium requires two
-          owner references or an admin pass.
+          This is how you get jobs. Keep it current, then share your Motel Connect
+          link with owners. Premium requires two owner references or an admin pass.
         </p>
         {form.isVerified ? <Badge tone="teal">Premium</Badge> : <Badge tone="amber">Non-vetted</Badge>}
+      </div>
+
+      <div className="rounded-2xl border border-teal-100 bg-teal-50/70 p-4">
+        <p className="text-sm font-semibold text-slate-900">Your Motel Connect link</p>
+        <p className="mt-1 text-sm text-slate-600">
+          Send this to motel owners. They can view your profile and hire you through
+          the network.
+        </p>
+        <p className="mt-3 truncate rounded-xl bg-white px-3 py-2 text-xs text-slate-700 ring-1 ring-slate-200">
+          {shareUrl}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button type="button" variant="dark" onClick={() => void copyShareLink()}>
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied ? "Copied" : "Copy link"}
+          </Button>
+          <Link href={sharePath} target="_blank">
+            <Button type="button" variant="secondary">
+              Preview profile
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

@@ -3,13 +3,15 @@
 import { Badge, Button, Field, inputClass, Modal } from "@/components/ui";
 import { defaultManagerFilters, filterManagers } from "@/lib/filters";
 import { canDispatchProposals } from "@/lib/permissions";
+import { managerSharePath } from "@/lib/public-manager";
 import { useStore } from "@/lib/store";
 import type { AustralianState, JobType, ManagerProfile, ProfileType } from "@/lib/types";
 import { AU_STATES, JOB_TYPES } from "@/lib/types";
 import { cn, formatAUD } from "@/lib/utils";
-import { BadgeCheck, Map, LayoutGrid, ShieldAlert } from "lucide-react";
+import { BadgeCheck, Check, Copy, Map, LayoutGrid, ShieldAlert } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -28,6 +30,7 @@ export function ManagerList() {
   const [filters, setFilters] = useState(defaultManagerFilters);
   const [view, setView] = useState<"grid" | "map">("grid");
   const [selected, setSelected] = useState<ManagerProfile | null>(null);
+  const [copied, setCopied] = useState(false);
   const [proposalOpen, setProposalOpen] = useState(false);
   const [proposal, setProposal] = useState({
     startDate: "2026-09-14",
@@ -358,6 +361,27 @@ export function ManagerList() {
                 <span className="font-medium">Liquor:</span>{" "}
                 {selected.liquorLicensing ? selected.liquorStates.join(", ") : "No"}
               </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  const url = `${window.location.origin}${managerSharePath(selected.id)}`;
+                  void navigator.clipboard.writeText(url).then(() => {
+                    setCopied(true);
+                    window.setTimeout(() => setCopied(false), 1600);
+                  });
+                }}
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Copied" : "Copy Motel Connect link"}
+              </Button>
+              <Link href={managerSharePath(selected.id)} target="_blank">
+                <Button type="button" variant="ghost">
+                  View public profile
+                </Button>
+              </Link>
             </div>
             {canPropose && selected.isVerified ? (
               <Button

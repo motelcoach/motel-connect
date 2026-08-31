@@ -171,9 +171,9 @@ export type RoleBrief = {
   contactPhone: string;
   profileType: RoleProfilePreference;
   rooms: number;
-  pms: string;
-  pos: string;
-  hr: string;
+  pms: string[];
+  pos: string[];
+  hr: string[];
   otherSystems: string;
   durationNotes: string;
   liquorRequired: boolean;
@@ -192,6 +192,7 @@ export type RoleBrief = {
   petsAllowed: boolean;
   mealPrepNotes: string;
   superIncluded: boolean;
+  accommodationIncluded: boolean;
   billsIncluded: boolean;
   mealsIncluded: boolean;
   packageNotes: string;
@@ -325,6 +326,33 @@ export type ListedRoleRecord = {
   status: ListedRoleStatus;
   interestedEmails: string[];
   createdAt: string;
+};
+
+export type PublicManagerProfile = {
+  id: string;
+  name: string;
+  location: string;
+  state: AustralianState;
+  photoUrl: string;
+  bio: string;
+  rightToWork: RightToWork;
+  experience: ExperienceBand;
+  profileType: ProfileType;
+  partnerName?: string;
+  partnerBio?: string;
+  partnerExperience?: ExperienceBand;
+  partnerPhotoUrl?: string;
+  preferredLocations: Array<AustralianState | "Nationwide">;
+  preferredJobTypes: JobType[];
+  liquorLicensing: boolean;
+  liquorStates: AustralianState[];
+  eventsExperience: boolean;
+  restaurantPubExperience: boolean;
+  softwarePMS: string[];
+  softwarePOS: string[];
+  softwareHR: string[];
+  isVerified: boolean;
+  completedShifts: number;
 };
 
 export type LoginAccount = {

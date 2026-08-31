@@ -113,6 +113,11 @@ function applyRosterRow(existing: ManagerProfile | undefined, row: ManagerRoster
   };
 }
 
+export function fromRosterRecord(row: ManagerRosterRecord): ManagerProfile {
+  const manager = applyRosterRow(undefined, row);
+  return { ...manager, isVerified: computeVerified(manager) };
+}
+
 export function mergeRoster(
   local: ManagerProfile[],
   remote: ManagerRosterRecord[],

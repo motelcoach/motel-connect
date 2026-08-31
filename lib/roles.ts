@@ -16,9 +16,9 @@ export function emptyRoleBrief(): RoleBrief {
     contactPhone: "",
     profileType: "Either",
     rooms: 0,
-    pms: "",
-    pos: "",
-    hr: "",
+    pms: [],
+    pos: [],
+    hr: [],
     otherSystems: "",
     durationNotes: "",
     liquorRequired: false,
@@ -37,14 +37,30 @@ export function emptyRoleBrief(): RoleBrief {
     petsAllowed: false,
     mealPrepNotes: "",
     superIncluded: false,
+    accommodationIncluded: false,
     billsIncluded: false,
     mealsIncluded: false,
     packageNotes: "",
   };
 }
 
+function toSoftwareList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && Boolean(item.trim()));
+  }
+  if (typeof value === "string" && value.trim()) return [value.trim()];
+  return [];
+}
+
 export function normalizeBrief(value?: Partial<RoleBrief> | null): RoleBrief {
-  return { ...emptyRoleBrief(), ...(value ?? {}) };
+  const raw = (value ?? {}) as Partial<RoleBrief> & Record<string, unknown>;
+  const merged = { ...emptyRoleBrief(), ...raw };
+  return {
+    ...merged,
+    pms: toSoftwareList(raw.pms),
+    pos: toSoftwareList(raw.pos),
+    hr: toSoftwareList(raw.hr),
+  };
 }
 
 const JOB_TYPES: JobType[] = ["Full-Time", "Relief", "Relief Couple", "Permanent Couple"];

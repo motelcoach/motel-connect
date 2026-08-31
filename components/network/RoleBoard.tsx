@@ -47,7 +47,7 @@ function defaultForm(owner?: OwnerProfile) {
       contactName: owner?.name ?? "",
       contactPhone: owner?.phone ?? "",
       rooms: owner?.rooms ?? 0,
-      pms: owner?.pms ?? "",
+      pms: owner?.pms ? [owner.pms] : [],
     },
   };
 }
@@ -56,8 +56,9 @@ function briefChips(listing: ListedRole) {
   const brief = normalizeBrief(listing.brief);
   return [
     brief.profileType !== "Either" ? brief.profileType : null,
-    brief.pms || null,
-    brief.pos || null,
+    ...brief.pms,
+    ...brief.pos,
+    ...brief.hr,
     brief.rooms ? `${brief.rooms} rooms` : null,
     brief.liquorRequired ? "RSA / liquor" : null,
     brief.safeFoodLicense ? "Safe food" : null,
@@ -66,6 +67,7 @@ function briefChips(listing: ListedRole) {
     brief.employmentType,
     brief.petsAllowed ? "Pets OK" : null,
     brief.superIncluded ? "+ Super" : null,
+    brief.accommodationIncluded ? "Accommodation included" : null,
     brief.billsIncluded ? "Bills included" : null,
     brief.mealsIncluded ? "Meals included" : null,
   ].filter((item): item is string => Boolean(item));
@@ -75,6 +77,7 @@ function packageLine(listing: ListedRole) {
   const brief = normalizeBrief(listing.brief);
   const extras = [
     brief.superIncluded ? "Super" : null,
+    brief.accommodationIncluded ? "Accommodation included" : null,
     brief.livingQuarters || null,
     brief.billsIncluded ? "bills included" : null,
     brief.mealsIncluded ? "meals included" : null,
@@ -137,6 +140,7 @@ export function RoleBoard() {
         .filter(Boolean)
         .join(" "),
       specialConditions: [
+        brief.accommodationIncluded ? "Accommodation included" : null,
         brief.livingQuarters && `Residence: ${brief.livingQuarters}`,
         brief.petsAllowed ? "Pets OK" : null,
         brief.liquorNotes,
@@ -522,52 +526,41 @@ export function RoleBoard() {
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
               Property and systems
             </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Room count">
-                <input
-                  type="number"
-                  min={0}
-                  className={inputClass}
-                  value={form.brief.rooms || ""}
-                  onChange={(event) => patchBrief({ rooms: Number(event.target.value) || 0 })}
-                />
-              </Field>
-              <Field label="PMS">
-                <select
-                  className={inputClass}
-                  value={form.brief.pms}
-                  onChange={(event) => patchBrief({ pms: event.target.value })}
-                >
-                  <option value="">Select PMS</option>
-                  {taxonomy.pms.map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="POS">
-                <select
-                  className={inputClass}
-                  value={form.brief.pos}
-                  onChange={(event) => patchBrief({ pos: event.target.value })}
-                >
-                  <option value="">None / not set up</option>
-                  {taxonomy.pos.map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="HR / payroll">
-                <select
-                  className={inputClass}
-                  value={form.brief.hr}
-                  onChange={(event) => patchBrief({ hr: event.target.value })}
-                >
-                  <option value="">None / not set up</option>
-                  {taxonomy.hr.map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
-              </Field>
+            <Field label="Room count">
+              <input
+                type="number"
+                min={0}
+                className={inputClass}
+                value={form.brief.rooms || ""}
+                onChange={(event) => patchBrief({ rooms: Number(event.target.value) || 0 })}
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {(["pms", "pos", "hr"] as const).map((key) => (
+                <div key={key}>
+                  <p className="mb-2 text-sm font-medium text-slate-700">
+                    {key === "hr" ? "HR / payroll" : key.toUpperCase()}
+                  </p>
+                  <div className="space-y-1.5">
+                    {taxonomy[key].map((item) => (
+                      <label key={item} className="flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={form.brief[key].includes(item)}
+                          onChange={() =>
+                            patchBrief({
+                              [key]: form.brief[key].includes(item)
+                                ? form.brief[key].filter((value) => value !== item)
+                                : [...form.brief[key], item],
+                            })
+                          }
+                        />
+                        {item}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
             <Field label="Any other key systems">
               <input
@@ -754,7 +747,7 @@ export function RoleBoard() {
                 }
               />
             </Field>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
@@ -762,6 +755,16 @@ export function RoleBoard() {
                   onChange={(event) => patchBrief({ superIncluded: event.target.checked })}
                 />
                 Super included
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.brief.accommodationIncluded}
+                  onChange={(event) =>
+                    patchBrief({ accommodationIncluded: event.target.checked })
+                  }
+                />
+                Accommodation included
               </label>
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
